@@ -1,0 +1,31 @@
+{
+  "name": "battledraft-backend",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server-express": "^2.16.1",
+    "bcryptjs": "^2.4.3",
+    "connect-mongo": "^3.2.0",
+    "cookie-parser": "^1.4.5",
+    "cookie-session": "^1.4.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "graphql": "^15.0.0",
+    "graphql-subscriptions": "^1.1.0",
+    "jsonwebtoken": "^8.5.1",
+    "mkdirp": "^1.0.4",
+    "mongoose": "^5.9.16",
+    "nodemon": "^2.0.4",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0",
+    "shortid": "^2.2.15",
+    "socket.io": "^2.3.0"
+  }
+}
