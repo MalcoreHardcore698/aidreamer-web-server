@@ -146,7 +146,7 @@ module.exports = gql`
         status: Status!
     }
 
-    type News {
+    type Article {
         id: ID!
         author: User!
         title: String!
@@ -191,8 +191,8 @@ module.exports = gql`
         allImages: [Image]
         allUsers: [User]
         allOffers(status: Status): [Offer]
-        allNews(status: Status): [News]
-        allUserNews(id: ID!): [News]
+        allArticles(status: Status): [Article]
+        allUserArticles(id: ID!): [Article]
         allHubs(status: Status): [Hub]
         allChats: [Chat]
         allUserRoles: [UserRoles]
@@ -211,7 +211,7 @@ module.exports = gql`
         getImage(id: ID!): Image
         getUser(id: ID!): User
         getOffer(id: ID!): Offer
-        getNews(id: ID!): News
+        getArticle(id: ID!): Article
         getHub(id: ID!): Hub
         getChat(id: ID!): Chat
 
@@ -227,11 +227,19 @@ module.exports = gql`
         password: String!
         confirmPassword: String!
         email: String!
+        phone: String
+        role: UserRoles
+        avatar: ID
     }
 
     input InputComment {
         user: ID!
         message: String!
+    }
+
+    input InputArticle {
+        id: ID!
+        author: ID!
     }
 
     type Mutation {
@@ -303,11 +311,12 @@ module.exports = gql`
             isVerifiedPhone: Boolean
             isNotified: Boolean
         ): Boolean!
-        deleteUser(
-            id: ID!
+        deleteUsers(
+            id: [ID]
         ): Boolean!
 
-        addNews(
+        # ARTICLE
+        addArticle(
             author: ID!
             title: String!
             description: String!
@@ -318,7 +327,7 @@ module.exports = gql`
             comments: [InputComment]
             status: Status!
         ): Boolean!
-        editNews(
+        editArticle(
             id: ID!
             title: String
             description: String
@@ -329,8 +338,8 @@ module.exports = gql`
             hub: ID
             status: Status
         ): Boolean!
-        deleteNews(
-            id: [ID!]!
+        deleteArticles(
+            articles: [InputArticle]
         ): Boolean!
 
         addHub(
@@ -338,8 +347,7 @@ module.exports = gql`
             description: String!
             slogan: String!
             icon: ID
-            iconFile: Upload
-            color: String!
+            color: String
             status: Status!
         ): Boolean!
         editHub(
@@ -348,7 +356,6 @@ module.exports = gql`
             description: String
             slogan: String
             icon: ID
-            iconFile: Upload
             color: String
             status: Status
         ): Boolean!
@@ -395,8 +402,11 @@ module.exports = gql`
     }
 
     type Subscription {
-        articles: [News]
-        userArticles(id: ID!): [News]
+        users: [User]
+        hubs: [Hub]
+        articles(status: Status): [Article]
+
+        userArticles(id: ID!): [Article]
 
         messages(chat: ID!): [Message]
         userchats(user: ID!): [UserChat]

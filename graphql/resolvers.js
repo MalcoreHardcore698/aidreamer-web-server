@@ -1,7 +1,7 @@
 const User = require('./../models/User')
 const UserChat = require('./../models/UserChat')
 const Offer = require('./../models/Offer')
-const News = require('./../models/News')
+const Article = require('./../models/Article')
 const Hub = require('./../models/Hub')
 const Chat = require('./../models/Chat')
 const Message = require('./../models/Message')
@@ -37,7 +37,11 @@ module.exports = {
     User: {
         id: parent => parent.id,
         name: parent => parent.name,
-        avatar: async (parent) => await Avatar.findById(parent.avatar),
+        avatar: async (parent) => {
+            const avatar = await Avatar.findById(parent.avatar)
+            if (avatar) return avatar
+            return { id: '', name: '', path: '' }
+        },
         offers: async (parent) => {
             const offers = await Offer.find({ user: parent.id })
             return offers
@@ -77,14 +81,18 @@ module.exports = {
             const offers = await Offer.find({ hub: parent.id })
             return offers
         },
-        icon: async (parent) => await Image.findById(parent.icon),
+        icon: async (parent) => {
+            const icon = await Image.findById(parent.icon)
+            if (icon) return icon
+            return { id: '', name: '', path: '' }
+        },
         countUsers: () => 0,
         countOffers: async (parent) => {
             const offers = await Offer.find({ hub: parent.id })
             return offers.length
         }
     },  
-    News: {
+    Article: {
         author: async (parent) => await User.findById(parent.author),
         image: async (parent) => {
             if (!parent.image) return {
@@ -113,14 +121,14 @@ module.exports = {
             return await User.find()
         },
         allOffers: async () => await Offer.find(),
-        allNews: async (_, { status }) => {
-            const news = await News.find()
-            if (status) return news.filter(n => n.status === status)
-            return news
+        allArticles: async (_, { status }) => {
+            const articles = await Article.find()
+            if (status) return articles.filter(n => n.status === status)
+            return articles
         },
-        allUserNews: async (_, { id }) => {
-            const news = await News.find({ author: id })
-            return news.filter(n => n.status === 'PUBLISHED')
+        allUserArticles: async (_, { id }) => {
+            const articles = await Article.find({ author: id })
+            return articles.filter(n => n.status === 'PUBLISHED')
         },
         allHubs: async (_, { status }) => {
             const hubs = await Hub.find()
@@ -162,7 +170,7 @@ module.exports = {
             return await User.findById(id)
         },
         getOffer: async (_,  { id }) => await Offer.findById(id),
-        getNews: async (_,  { id }) => await News.findById(id),
+        getArticle: async (_,  { id }) => await Article.findById(id),
         getHub: async (_,  { id }) => await Hub.findById(id),
         getChat: async (_,  { id }) => await Chat.findById(id),
 
@@ -331,8 +339,14 @@ module.exports = {
             await user.save()
             return true
         },
-        deleteUser: async (_, { id }) => {
-            await User.findById(id).deleteOne()
+        deleteUsers: async (_, { id }, { pubsub }) => {
+            for (i of id) {
+                await User.findById(i).deleteOne()
+            }
+
+            const users = await User.find()
+            pubsub.publish('users', { users })
+
             return true
         },
 
@@ -358,8 +372,8 @@ module.exports = {
             return true
         },
 
-        addNews: async (_, args, { storeUpload, pubsub }) => {
-            const news = await News.create({
+        addArticle: async (_, args, { storeUpload, pubsub }) => {
+            const article = await Article.create({
                 author: args.author,
                 title: args.title,
                 description: args.description,
@@ -377,19 +391,19 @@ module.exports = {
                 })
 
                 if (image) {
-                    news.image = image.id
-                    await news.save()
+                    article.image = image.id
+                    await article.save()
                 }
             }
 
-            const articles = await News.find()
+            const articles = await Article.find()
             pubsub.publish('articles', { articles })
             pubsub.publish('user-articles', { articles: articles.filter(a => a.author === args.author) })
 
             return true
         },
-        editNews: async (_, args, { storeUpload, pubsub }) => {
-            const news = await News.findById(args.id)
+        editArticle: async (_, args, { storeUpload, pubsub }) => {
+            const article = await Article.findById(args.id)
 
             if (args.image) {
                 const file = await storeUpload(args.image)
@@ -399,79 +413,70 @@ module.exports = {
                     category: 'POSTER'
                 })
 
-                if (image) {
-                    news.image = image.id
-                }
+                if (image) article.image = image.id
             }
 
-            news.title = args.title || news.title
-            news.description = args.description || news.description
-            news.body = args.body || news.body
-            news.hub = args.hub || news.hub
-            news.status = args.status || news.status
+            article.title = args.title || article.title
+            article.description = args.description || article.description
+            article.body = args.body || article.body
+            article.hub = args.hub || article.hub
+            article.status = args.status || article.status
 
-            await news.save()
+            await article.save()
 
-            const articles = await News.find()
+            const articles = await Article.find()
             pubsub.publish('articles', { articles })
+            pubsub.publish('user-articles', { articles: articles.filter(a => a.author === args.author) })
 
             return true
         },
-        deleteNews: async (_, { id }, { pubsub }) => {
-            for (i of id) {
-                await News.findById(id).deleteOne()
+        deleteArticles: async (_, { articles }, { pubsub }) => {
+            for (article of articles) {
+                await Article.findById(article.id).deleteOne()
             }
 
-            const articles = await News.find()
-            pubsub.publish('articles', { articles })
+            const newArticles = await Article.find()
+            pubsub.publish('articles', { articles: newArticles })
+
+            for (article of newArticles) {
+                pubsub.publish('user-articles', { articles: newArticles.filter(a => a.author === article.author) })
+            }
 
             return true
         },
 
-        addHub: async (_, args, { storeUpload }) => {
-            const icon = await Image.findById(args.icon)
-            const iconFile = (args.iconFile) && await storeUpload(args.title, args.iconFile)
-            const newIcon = (args.iconFile) && await Image.create({
-                name: iconFile.filename,
-                path: iconFile.path,
-                category: 'ICON'
-            })
+        addHub: async (_, args, { pubsub }) => {
+            await Hub.create(args)
 
-            await Hub.create({
-                title: args.title,
-                description: args.description,
-                slogan: args.slogan,
-                icon: (newIcon) ? newIcon.id : icon,
-                color: args.color,
-                status: args.status
-            })
+            const hubs = await Hub.find()
+            pubsub.publish('hubs', { hubs })
+
             return true
         },
-        editHub: async (_, args, { storeUpload }) => {
+        editHub: async (_, args, { pubsub }) => {
             const hub = await Hub.findById(args.id)
-
-            const icon = await Image.findById(args.icon)
-            const iconFile = (args.iconFile) && await storeUpload(args.title, args.iconFile)
-            const newIcon = (args.iconFile) && await Image.create({
-                name: iconFile.filename,
-                path: iconFile.path,
-                category: 'ICON'
-            })
             
             hub.title = args.title || hub.title
             hub.description = args.description || hub.description
             hub.slogan = args.slogan || hub.slogan
             hub.color = args.color || hub.color
             hub.status = args.status || hub.status
-            hub.icon = (newIcon) ? newIcon.id : (icon && icon.id) || hub.icon
 
             await hub.save()
+
+            const hubs = await Hub.find()
+            pubsub.publish('hubs', { hubs })
+
             return true
         },
-        deleteHubs: async (_, { id }) => {
+        deleteHubs: async (_, { id }, { pubsub }) => {
             for (i of id) {
                 await Hub.findById(id).deleteOne()
             }
+
+            const hubs = await Hub.find()
+            pubsub.publish('hubs', { hubs })
+
             return true
         },
 
@@ -568,8 +573,17 @@ module.exports = {
         }
     },
     Subscription: {
+        users: {
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('users')
+        },
+
+        hubs: {
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('hubs')
+        },
+
         articles: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('articles')
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('articles'),
+            resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
         },
         userArticles: {
             subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('user-articles'),
