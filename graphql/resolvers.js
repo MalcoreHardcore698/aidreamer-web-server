@@ -331,8 +331,7 @@ module.exports = {
             user.experience = args.experience || user.experience
             user.avatar = (avatar && avatar.id) || user.avatar
             user.preferences = args.preferences || user.preferences
-            user.dateLastAuth = args.dateLastAuth || user.dateLastAuth
-            user.dateRegistration = args.dateRegistration || user.dateRegistration
+
             user.isVerifiedEmail = args.isVerifiedEmail || user.isVerifiedEmail
             user.isVerifiedPhone = args.isVerifiedPhone || user.isVerifiedPhone
             user.isNotified = args.isNotified || user.isNotified
@@ -350,11 +349,16 @@ module.exports = {
             return true
         },
 
-        addOffer: async (_, args) => {
+        addOffer: async (_, args, { pubsub }) => {
             await Offer.create(args)
+
+            const offers = await Offer.find()
+            pubsub.publish('offers', { offers })
+            pubsub.publish('user-offers', { offers: offers.filter(a => a.user === args.user) })
+
             return true
         },
-        editOffer: async (_, args) => {
+        editOffer: async (_, args, { pubsub }) => {
             const offer = await Offer.findById(args.id)
             offer.user = args.user || offer.user
             offer.hub = args.hub || offer.hub
@@ -364,11 +368,27 @@ module.exports = {
             offer.dateEdited = args.dateEdited || offer.dateEdited
             offer.datePublished = args.datePublished || offer.datePublished
             offer.dateCreated = args.dateCreated || offer.dateCreated
+
             await offer.save()
+
+            const offers = await Offer.find()
+            pubsub.publish('offers', { offers })
+            pubsub.publish('user-offers', { offers: offers.filter(a => a.user === args.user) })
+
             return true
         },
-        deleteOffer: async (_, { id }) => {
-            await Offer.findById(id).deleteOne()
+        deleteOffers: async (_, { offers }, { pubsub }) => {
+            for (offer of offers) {
+                await Offer.findById(offer.id).deleteOne()
+            }
+
+            const newOffers = await Offer.find()
+            pubsub.publish('offers', { offers: newOffers })
+
+            for (offer of newOffers) {
+                pubsub.publish('user-articles', { offers: newOffers.filter(o => o.user === offer.user) })
+            }
+
             return true
         },
 
@@ -576,14 +596,22 @@ module.exports = {
         users: {
             subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('users')
         },
-
         hubs: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('hubs')
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('hubs'),
+            resolve: (payload, { status }) => payload.hubs.filter(hub => hub.status === status)
         },
-
+        offers: {
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('offers'),
+            resolve: (payload, { status }) => payload.offers.filter(offer => offer.status === status)
+        },
         articles: {
             subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('articles'),
             resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
+        },
+
+        userOffers: {
+            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('user-offers'),
+            resolve: (payload, { id }) => payload.offers.filter(offer => offer.user === id)
         },
         userArticles: {
             subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('user-articles'),

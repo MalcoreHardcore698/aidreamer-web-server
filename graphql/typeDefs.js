@@ -87,6 +87,8 @@ module.exports = gql`
         expirationDate: String
         cardHolderName: String
         bankContactInfo: String
+        updatedAt: String
+        createdAt: String!
     }
 
     type Transaction {
@@ -94,6 +96,8 @@ module.exports = gql`
         title: String!
         date: String!
         sum: Float
+        updatedAt: String
+        createdAt: String!
     }
 
     type Message {
@@ -102,7 +106,8 @@ module.exports = gql`
         sender: User!
         receiver: User!
         message: String!
-        dateCreated: String!
+        updatedAt: String
+        createdAt: String!
     }
     
     type Chat {
@@ -111,7 +116,8 @@ module.exports = gql`
         title: String!
         participants: [User!]!
         messages: [Message]
-        dateCreated: String!
+        updatedAt: String
+        createdAt: String!
     }
 
     type UserChat {
@@ -128,9 +134,8 @@ module.exports = gql`
         title: String!
         message: String!
         status: Status!
-        dateEdited: String
-        datePublished: String
-        dateCreated: String!
+        updatedAt: String
+        createdAt: String!
     }
 
     type Hub {
@@ -144,6 +149,8 @@ module.exports = gql`
         countUsers: Int
         countOffers: Int
         status: Status!
+        updatedAt: String
+        createdAt: String!
     }
 
     type Article {
@@ -235,6 +242,11 @@ module.exports = gql`
     input InputComment {
         user: ID!
         message: String!
+    }
+
+    input InputOffer {
+        id: ID!
+        user: ID!
     }
 
     input InputArticle {
@@ -378,8 +390,8 @@ module.exports = gql`
             message: String
             status: Status
         ): Boolean!
-        deleteOffer(
-            id: [ID!]!
+        deleteOffers(
+            offers: [InputOffer]
         ): Boolean!
 
         addChat(
@@ -404,8 +416,10 @@ module.exports = gql`
     type Subscription {
         users: [User]
         hubs: [Hub]
+        offers: [Offer]
         articles(status: Status): [Article]
 
+        userOffers(id: ID!): [Offer]
         userArticles(id: ID!): [Article]
 
         messages(chat: ID!): [Message]
