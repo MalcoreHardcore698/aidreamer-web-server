@@ -1,3 +1,4 @@
+const C = require('../types')
 const mongoose = require('mongoose')
  
 const ImageSchema = mongoose.Schema({
@@ -5,7 +6,7 @@ const ImageSchema = mongoose.Schema({
     path: { type: String, required: true },
     category:  {
         type: String,
-        enum: ['ICON', 'POSTER'],
+        enum: [C.ICON, C.POSTER],
         required: true
     }
 }, {

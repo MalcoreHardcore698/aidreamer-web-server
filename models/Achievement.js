@@ -1,3 +1,4 @@
+const C = require('../types')
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
@@ -6,7 +7,7 @@ const AchievementSchema = new Schema({
     description: { type: String, required: true },
     area: {
         type: String,
-        enum: ['HUB', 'OFFER', 'CHAT', 'TOURNAMENT', 'PROFILE'],
+        enum: [C.HUB, C.OFFER, C.CHAT, C.TOURNAMENT, C.PROFILE],
         required: true
     }
 }, {

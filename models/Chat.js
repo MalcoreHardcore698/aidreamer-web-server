@@ -8,6 +8,7 @@ const ChatSchema = new Schema({
     owner: { type: Schema.Types.ObjectId, refPath: 'onOwner', required: true },
     onOwner: {
         type: String,
+        // Not types, it is Models
         enum: ['User', 'Hub']
     }
 }, {

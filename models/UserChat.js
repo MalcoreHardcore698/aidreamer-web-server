@@ -1,3 +1,4 @@
+const C = require('../types')
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
@@ -6,7 +7,7 @@ const UserChatSchema = new Schema({
     chatId: { type: Schema.Types.ObjectId, ref: 'Chat', required: true },
     status: {
         type: String,
-        enum: ['OPEN', 'CLOSE'],
+        enum: [C.OPEN_CHAT, C.CLOSE_CHAT],
         required: true
     }
 }, {

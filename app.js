@@ -2,7 +2,6 @@ const { createWriteStream, existsSync, mkdirSync, unlink } = require('fs')
 const { createServer } = require('http')
 const express = require('express')
 const session = require('express-session')
-const MongoStore = require('connect-mongo')(session)
 const mongoose = require('mongoose')
 const cors = require('cors')
 const { ApolloServer, PubSub } = require('apollo-server-express')
@@ -64,15 +63,18 @@ async function start() {
     const server = new ApolloServer({
         typeDefs,
         resolvers,
-        context: {
-            storeUpload,
-            pubsub
+        context: ({ req }) => {
+            const user = {
+                auth: true
+            }
+
+            return { storeUpload, pubsub, req, user }
         }
     })
     
     app.use(cors({
-        origin: '*',
-        credentials: true
+        credentials: true,
+        origin: 'http://localhost:3000'
     }))
     app.use(session({
         secret: 'keyboard cat',
@@ -88,17 +90,8 @@ async function start() {
     server.applyMiddleware({ app })
     server.installSubscriptionHandlers(http)
 
-    app.get('/', (req, res, next) => {
-        res.send('<p>Battledraft API</p>')
-
-        console.log('\n/')
-        console.log({
-            url: req.protocol + '://' + req.get('host') + req.originalUrl,
-            user: req.user,
-            sessionID: req.sessionID,
-            session: req.session,
-            cookie: JSON.stringify(req.cookie),
-        })
+    app.get('/', (req, res) => {
+        res.send('<p>API</p>')
     })
 
     http.listen({ port }, () =>

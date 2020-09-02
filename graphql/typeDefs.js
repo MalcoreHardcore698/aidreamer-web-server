@@ -1,10 +1,32 @@
 const { gql } = require('apollo-server-express')
 
 module.exports = gql`
-    enum UserRoles {
-        ADMINISTRATOR
-        MODERATOR
-        USER
+    ## ENUMS ##
+    enum Permission {
+        ACCESS_CLIENT
+        ACCESS_DASHBOARD
+        ADD_USER
+        ADD_ARTICLE
+        ADD_OFFER
+        ADD_HUB
+        EDIT_USER
+        EDIT_ARTICLE
+        EDIT_OFFER
+        EDIT_HUB
+        DELETE_USER
+        DELETE_ARTICLE
+        DELETE_OFFER
+        DELETE_HUB
+        OPEN_CHAT
+        CLOSE_CHAT
+        USER_MESSAGING
+        SYSTEM_MESSAGING
+    }
+
+    enum Setting {
+        VERIFIED_EMAIL
+        VERIFIED_PHONE
+        NOTIFIED_EMAIL
     }
 
     enum Status {
@@ -17,7 +39,7 @@ module.exports = gql`
         CLOSE
     }
 
-    enum AchievementArea {
+    enum Area {
         HUB
         OFFER
         CHAT
@@ -30,11 +52,14 @@ module.exports = gql`
         POSTER
     }
 
+    ## TYPES ##
     type Image {
         id: ID!
         name: String!
         path: String!
         category: ImageCategory!
+        updatedAt: String,
+        createdAt: String
     }
 
     type Avatar {
@@ -44,60 +69,45 @@ module.exports = gql`
         path: String!
         complexity: Int!
         hub: Hub!
+        updatedAt: String,
+        createdAt: String
     }
 
     type Achievement {
         id: ID!
         title: String!
         description: String!
-        area: AchievementArea!
+        area: Area!
+        updatedAt: String,
+        createdAt: String
     }
 
     type User {
         id: ID!
+        sessionID: String!
         name: String!
         password: String!
         email: String!
         phone: String
-        role: UserRoles!
-        token: String!
+        role: Role!
         balance: Int
         level: Int
         experience: Int
         avatar: Avatar
         availableAvatars: [Avatar]
         offers: [Offer]
-        payment: [Payment]
+        chats: [UserChat]
         preferences: [Hub]
         achievements: [Achievement]
-        transactions: [Transaction]
-        chats: [UserChat]
-        isVerifiedEmail: Boolean
-        isVerifiedPhone: Boolean
-        isNotified: Boolean,
+        settings: [Setting]
         updatedAt: String,
         createdAt: String
     }
 
-    type Payment {
+    type Role {
         id: ID!
-        bankBranding: String!
-        cardNumber: Int!
-        securityCode: Int
-        expirationDate: String
-        cardHolderName: String
-        bankContactInfo: String
-        updatedAt: String
-        createdAt: String!
-    }
-
-    type Transaction {
-        id: ID!
-        title: String!
-        date: String!
-        sum: Float
-        updatedAt: String
-        createdAt: String!
+        name: String!
+        permissions: [Permission]
     }
 
     type Message {
@@ -125,6 +135,8 @@ module.exports = gql`
         userId: ID!
         chatId: ID!
         status: ChatStatus!
+        updatedAt: String,
+        createdAt: String
     }
 
     type Offer {
@@ -172,51 +184,31 @@ module.exports = gql`
         id: ID!
         user: ID!
         message: String!
-    }
-
-    input PaymentInput {
-        bankBranding: String!
-        cardNumber: Int!
-        securityCode: Int
-        expirationDate: String
-        cardHolderName: String
-        bankContactInfo: String
-    }
-
-    input TransactionInput {
-        title: String!
-        date: String!
-        sum: Float
-    }
-
-    input UserIDInput {
-        id: ID!
+        updatedAt: String,
+        createdAt: String
     }
 
     type Query {
-        allAvatars: [Avatar]
-        allImages: [Image]
         allUsers: [User]
+        allUserArticles(id: ID!): [Article]
+        allUserOffers(id: ID!): [Offer]
+
+        allImages: [Image]
+        allAvatars: [Avatar]
+        allRoles: [Role]
+        allChats: [Chat]
+        allStatus: [Status]
         allOffers(status: Status): [Offer]
         allArticles(status: Status): [Article]
-        allUserArticles(id: ID!): [Article]
         allHubs(status: Status): [Hub]
-        allChats: [Chat]
-        allUserRoles: [UserRoles]
-        allStatus: [Status]
+        allPermissions: [Permission]
+        allSettings: [Setting]
         allImageCategories: [ImageCategory]
-        allAchievementAreas: [AchievementArea]
-        allUserOffers(id: ID!): [Offer]!
-
-        authUser(
-            name: String
-            email: String
-            password: String!
-        ): User!
+        allAchievementAreas: [Area]
         
         getAvatar(id: ID!): Avatar
         getImage(id: ID!): Image
-        getUser(id: ID!): User
+        getUser(sessionID: String!): User
         getOffer(id: ID!): Offer
         getArticle(id: ID!): Article
         getHub(id: ID!): Hub
@@ -226,7 +218,14 @@ module.exports = gql`
         countImages: Int!
         countUsers: Int!
         countOffers: Int!
+        countArticles: Int!
         countHubs: Int!
+        countChats: Int!
+    }
+
+    # Inputs
+    input UserIDInput {
+        id: ID!
     }
 
     input RegisterInput {
@@ -234,8 +233,8 @@ module.exports = gql`
         password: String!
         confirmPassword: String!
         email: String!
+        role: ID
         phone: String
-        role: UserRoles
         avatar: ID
     }
 
@@ -253,11 +252,14 @@ module.exports = gql`
         id: ID!
         author: ID!
     }
-
+    
+    ## MUTATIONS ##
     type Mutation {
-        register(registerInput: RegisterInput): User!
+        # Auth/Reg
+        register(registerInput: RegisterInput!): User!
         login(name: String!, password: String!): User!
 
+        # Avatar
         addAvatar(
             order: Int!
             name: String!
@@ -276,6 +278,7 @@ module.exports = gql`
             id: [ID]!
         ): Boolean!
 
+        # Image
         addImage(
             name: String!
             file: Upload!
@@ -290,22 +293,36 @@ module.exports = gql`
         deleteImage(
             id: [ID]!
         ): Boolean!
+
+        # Role
+        addRole(
+            name: String!
+            permissions: [Permission!]!
+        ): Boolean!
+        editRole(
+            id: ID!
+            name: String
+            permissions: [Permission]
+        ): Boolean!
+        deleteRoles(
+            id: [ID]!
+        ): Boolean!
         
+        # User
         addUser(
             name: String!
             password: String!
             email: String!
             phone: String!
-            role: UserRoles!
+            role: ID!
             balance: Int
             level: Int
-            experience: Int
             avatar: ID
+            availableAvatars: [ID]
+            experience: Int
             preferences: [ID]
-            payment: PaymentInput
-            isVerifiedEmail: Boolean
-            isVerifiedPhone: Boolean
-            isNotified: Boolean
+            permissions: [Permission]
+            settings: [Setting]
         ): Boolean!
         editUser(
             id: ID!
@@ -313,21 +330,21 @@ module.exports = gql`
             password: String
             email: String
             phone: String
-            role: UserRoles
+            role: ID
             balance: Int
             level: Int
-            experience: Int
             avatar: ID
+            availableAvatars: [ID]
+            experience: Int
             preferences: [ID]
-            isVerifiedEmail: Boolean
-            isVerifiedPhone: Boolean
-            isNotified: Boolean
+            permissions: [Permission]
+            settings: [Setting]
         ): Boolean!
         deleteUsers(
             id: [ID]
         ): Boolean!
 
-        # ARTICLE
+        # Article
         addArticle(
             author: ID!
             title: String!
@@ -353,7 +370,8 @@ module.exports = gql`
         deleteArticles(
             articles: [InputArticle]
         ): Boolean!
-
+        
+        # Hub
         addHub(
             title: String!
             description: String!
@@ -374,7 +392,8 @@ module.exports = gql`
         deleteHubs(
             id: [ID!]!
         ): Boolean!
-
+        
+        # Offer
         addOffer(
             user: ID!
             hub: ID!
@@ -393,7 +412,8 @@ module.exports = gql`
         deleteOffers(
             offers: [InputOffer]
         ): Boolean!
-
+        
+        # Chat
         addChat(
             id: ID!
             title: String!
@@ -413,6 +433,7 @@ module.exports = gql`
         ): Boolean!
     }
 
+    ## SUBSCRIPTIONS ##
     type Subscription {
         users: [User]
         hubs: [Hub]

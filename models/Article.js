@@ -1,3 +1,4 @@
+const C = require('../types')
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
@@ -12,7 +13,7 @@ const ArticleSchema = new Schema({
     views: { type: Number },
     status:  {
         type: String,
-        enum: ['MODERATION', 'PUBLISHED'],
+        enum: [C.MODERATION, C.PUBLISHED],
         required: true
     }
 }, {

@@ -1,5 +1,8 @@
+const C = require('../types')
+
 const User = require('./../models/User')
 const UserChat = require('./../models/UserChat')
+const Role = require('./../models/Role')
 const Offer = require('./../models/Offer')
 const Article = require('./../models/Article')
 const Hub = require('./../models/Hub')
@@ -18,7 +21,7 @@ const {
 } = require('../utils/validators')
 const SECRET_KEY = 'secret'
 
-function generateToken(user) {
+function generateSessionID(user) {
   return jwt.sign(
     {
       id: user.id,
@@ -42,10 +45,21 @@ module.exports = {
             if (avatar) return avatar
             return { id: '', name: '', path: '' }
         },
+        availableAvatars: async (parent) => {
+            const avatars = []
+
+            for (id of parent.avatars) {
+                const avatar = await Avatar.findById(id)
+                avatars.push(avatar)
+            }
+
+            return avatars
+        },
         offers: async (parent) => {
             const offers = await Offer.find({ user: parent.id })
             return offers
         },
+        role: async (parent) => await Role.findById(parent.role),
         preferences: async (parent) => {
             const hubs = []
             if (parent.preferences) {
@@ -115,73 +129,197 @@ module.exports = {
         }
     },
     Query: {
-        allAvatars: async () => await Avatar.find(),
-        allImages: async () => await Image.find(),
-        allUsers: async (_, args, context) => {
+        // All Queries
+        allUsers: async (_, args, { user }) => {
+            if (!user.auth) return null
+
             return await User.find()
         },
-        allOffers: async () => await Offer.find(),
-        allArticles: async (_, { status }) => {
-            const articles = await Article.find()
-            if (status) return articles.filter(n => n.status === status)
-            return articles
-        },
-        allUserArticles: async (_, { id }) => {
+        allUserArticles: async (_, { id }, { user }) => {
+            if (!user.auth) return null
+            
             const articles = await Article.find({ author: id })
             return articles.filter(n => n.status === 'PUBLISHED')
         },
-        allHubs: async (_, { status }) => {
-            const hubs = await Hub.find()
-            if (status) return hubs.filter(h => h.status === status)
-            return hubs
-        },
-        allChats: async () => await Chat.find(),
-        allUserRoles: () => ([
-            'ADMINISTRATOR',
-            'MODERATOR',
-            'USER'
-        ]),
-        allStatus: () => ([
-            'MODERATION',
-            'PUBLISHED'
-        ]),
-        allImageCategories: () => ([
-            'ICON',
-            'POSTER'
-        ]),
-        allAchievementAreas: () => ([
-            'HUB',
-            'OFFER',
-            'CHAT',
-            'TOURNAMENT',
-            'PROFILE'
-        ]),
-        allUserOffers: async (_, { id }) => {
+        allUserOffers: async (_, { id }, { user }) => {
+            if (!user.auth) return null
+            
             const offers = await Offer.find({ user: id })
             return offers || []
         },
 
-        authUser: async (_, args) => {
-            const user = await User.find(args)
-            return (user && user.length > 0) ? user[0] : {}
+        allRoles: async (_, args, { user }) => {
+            if (!user.auth) return null
+
+            return await Role.find()
+        },
+        allImages: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return await Image.find()
+        },
+        allAvatars: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return await Avatar.find()
+        },
+        allChats: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return await Chat.find()
+        },
+        allStatus: (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return ([ C.MODERATION, C.PUBLISHED ])
+        },
+        allOffers: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Offer.find()
+        },
+        allArticles: async (_, { status }, { user }) => {
+            if (!user.auth) return null
+            
+            const articles = await Article.find()
+            if (status) return articles.filter(n => n.status === status)
+            return articles
+        },
+        allHubs: async (_, { status }, { user }) => {
+            if (!user.auth) return null
+            
+            const hubs = await Hub.find()
+            if (status) return hubs.filter(h => h.status === status)
+            return hubs
+        },
+        allPermissions: (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return ([
+                C.ACCESS_CLIENT,
+                C.ACCESS_DASHBOARD,
+                C.ADD_USER,
+                C.ADD_ARTICLE,
+                C.ADD_OFFER,
+                C.ADD_HUB,
+                C.EDIT_USER,
+                C.EDIT_ARTICLE,
+                C.EDIT_OFFER,
+                C.EDIT_HUB,
+                C.DELETE_USER,
+                C.DELETE_ARTICLE,
+                C.DELETE_OFFER,
+                C.DELETE_HUB,
+                C.OPEN_CHAT,
+                C.CLOSE_CHAT,
+                C.USER_MESSAGING,
+                C.SYSTEM_MESSAGING
+            ])
+        },
+        allSettings: (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return ([
+                C.VERIFIED_EMAIL,
+                C.VERIFIED_PHONE,
+                C.NOTIFIED_EMAIL
+            ])
+        },
+        allImageCategories: (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return ([
+                C.ICON,
+                C.POSTER
+            ])
+        },
+        allAchievementAreas: (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            return ([
+                C.HUB,
+                C.OFFER,
+                C.CHAT,
+                C.TOURNAMENT,
+                C.PROFILE
+            ])
         },
 
-        getUser: async (_,  { id }) => {
-            return await User.findById(id)
+        getAvatar: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Avatar.findById(id)
         },
-        getOffer: async (_,  { id }) => await Offer.findById(id),
-        getArticle: async (_,  { id }) => await Article.findById(id),
-        getHub: async (_,  { id }) => await Hub.findById(id),
-        getChat: async (_,  { id }) => await Chat.findById(id),
+        getImage: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Image.findById(id)
+        },
+        getUser: async (_,  { sessionID }, { user }) => {
+            if (!user.auth) return null
+            
+            await User.find({ sessionID })
+        },
+        getOffer: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Offer.findById(id)
+        },
+        getArticle: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Article.findById(id)
+        },
+        getHub: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Hub.findById(id)
+        },
+        getChat: async (_,  { id }, { user }) => {
+            if (!user.auth) return null
+            
+            await Chat.findById(id)
+        },
 
-        countAvatars: async () => await Avatar.estimatedDocumentCount(),
-        countImages: async () => await Image.estimatedDocumentCount(),
-        countUsers: async () => await User.estimatedDocumentCount(),
-        countOffers: async () => await Offer.estimatedDocumentCount(),
-        countHubs: async () => await Hub.estimatedDocumentCount()
+        countAvatars: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Avatar.estimatedDocumentCount()
+        },
+        countImages: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Image.estimatedDocumentCount()
+        },
+        countUsers: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await User.estimatedDocumentCount()
+        },
+        countOffers: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Offer.estimatedDocumentCount()
+        },
+        countArticles: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Article.estimatedDocumentCount()
+        },
+        countHubs: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Hub.estimatedDocumentCount()
+        },
+        countChats: async (_, args, { user }) => {
+            if (!user.auth) return null
+            
+            await Chat.estimatedDocumentCount()
+        }
     },
     Mutation: {
-        async login(_, { name, password }) {
+        // Auth/Reg
+        async login(_, { name, password, sessionID }, { req }) {
             const { errors, valid } = validateLoginInput(name, password)
         
             if (!valid) {
@@ -200,24 +338,35 @@ module.exports = {
                 errors.general = 'Wrong crendetials'
                 throw new UserInputError('Wrong crendetials', { errors })
             }
-        
-            const token = generateToken(user)
-        
-            return {
-                ...user._doc,
-                id: user._id,
-                token
+            
+            req.session.user = user
+            if (sessionID === user.sessionID) return user
+            else {
+                user.sessionID = req.sessionID
+                await user.save()
             }
+        
+            return user
         },
         async register(_, {
-                registerInput: { name, email, password, confirmPassword }
-            }) {
+                registerInput: {
+                    name,
+                    email,
+                    password,
+                    confirmPassword,
+                    role,
+                    phone,
+                    avatar
+                }
+            }, { req }) {
             // Validate user data
             const { valid, errors } = validateRegisterInput(
                 name,
                 email,
                 password,
-                confirmPassword
+                confirmPassword, 
+                phone,
+                avatar
             )
 
             if (!valid) {
@@ -235,25 +384,28 @@ module.exports = {
             }
             // hash password and create an auth token
             password = await bcrypt.hash(password, 12);
-        
+            
+            const userRole = await Role.findOne({ name: 'USER' })
             const newUser = new User({
                 email,
                 name,
                 password,
-                role: 'USER'
+                role: role || userRole.id,
+                phone,
+                avatar
             })
+
+            req.session.user = newUser
+            newUser.sessionID = req.sessionID
+            await newUser.save()
         
-            const res = await newUser.save()
-            const token = generateToken(res)
-        
-            return {
-                ...res._doc,
-                id: res._id,
-                token
-            }
+            return newUser
         },
 
-        addAvatar: async (_, args, { storeUpload }) => {
+        // Avatar
+        addAvatar: async (_, args, { storeUpload, user }) => {
+            if (!user.auth) return false
+            
             const avatar = await storeUpload(args.name, args.file)
             await Avatar.create({
                 order: args.order,
@@ -264,7 +416,9 @@ module.exports = {
             })
             return true
         },
-        editAvatar: async (_, args, { storeUpload }) => {
+        editAvatar: async (_, args, { storeUpload, user }) => {
+            if (!user.auth) return false
+            
             const avatar = await Avatar.findById(args.id)
             const file = args.file && await storeUpload(args.name, args.file)
 
@@ -277,12 +431,17 @@ module.exports = {
 
             return true
         },
-        deleteAvatar: async (_, { id }) => {
+        deleteAvatar: async (_, { id, user }) => {
+            if (!user.auth) return false
+            
             await Avatar.findById(id).deleteOne()
             return true
         },
 
-        addImage: async (_, args, { storeUpload }) => {
+        // Image
+        addImage: async (_, args, { storeUpload, user }) => {
+            if (!user.auth) return false
+            
             const image = await storeUpload(args.name, args.file)
             await Image.create({
                 name: args.name,
@@ -291,7 +450,9 @@ module.exports = {
             })
             return true
         },
-        editImage: async (_, args, { storeUpload }) => {
+        editImage: async (_, args, { storeUpload, user }) => {
+            if (!user.auth) return false
+            
             const image = await Image.findById(args.id)
             const file = args.file && await storeUpload(args.name, args.file)
 
@@ -302,43 +463,90 @@ module.exports = {
             
             return true
         },
-        deleteImage: async (_, { id }) => {
+        deleteImage: async (_, { id }, { user }) => {
+            if (!user.auth) return false
+            
             for (i of id) {
                 await Image.findById(id).deleteOne()
             }
             return true
         },
 
-        addUser: async (_, args) => {
+        // Role
+        addRole: async (_, args, { user }) => {
+            if (!user.auth) return false
+
+            await Role.create(args)
+
+            return true
+        },
+        editRole: async (_, args, { user }) => {
+            if (!user.auth) return false
+
+            const role = await Role.findById(args.id)
+
+            role.name = args.name || role.name
+            role.permissions = args.permissions || role.permissions
+
+            await role.save()
+
+            return true
+        },
+        deleteRoles: async (_, { id }, { user }) => {
+            if (!user.auth) return false
+            
+            for (i of id) {
+                await Role.findById(i).deleteOne()
+            }
+
+            return true
+        },
+
+        // User
+        addUser: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             const avatar = await Avatar.findById(args.avatar)
             await User.create({
                 ...args,
                 avatar
             })
+            
+            const users = await User.find()
+            pubsub.publish('users', { users })
+
             return true
         },
-        editUser: async (_, args) => {
-            const user = await User.findById(args.id)
+        editUser: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
+            const _user = await User.findById(args.id)
             const avatar = await Avatar.findById(args.avatar)
 
-            user.name = args.name || user.name
-            user.password = args.password || user.password
-            user.email = args.email || user.email
-            user.phone = args.phone || user.phone
-            user.role = args.role || user.role
-            user.balance = args.balance || user.balance
-            user.level = args.level || user.level
-            user.experience = args.experience || user.experience
-            user.avatar = (avatar && avatar.id) || user.avatar
-            user.preferences = args.preferences || user.preferences
+            _user.name = args.name || _user.name
+            _user.password = args.password || _user.password
+            _user.email = args.email || _user.email
+            _user.phone = args.phone || _user.phone
+            _user.role = args.role || _user.role
+            _user.balance = args.balance || _user.balance
+            _user.level = args.level || _user.level
+            _user.avatar = (avatar && avatar.id) || _user.avatar
+            _user.availableAvatars = _user.availableAvatars || _user.availableAvatars
+            _user.experience = args.experience || _user.experience
+            _user.preferences = args.preferences || _user.preferences
+            _user.permissions = args.permissions || _user.permissions
+            _user.settings = args.settings || _user.settings
 
-            user.isVerifiedEmail = args.isVerifiedEmail || user.isVerifiedEmail
-            user.isVerifiedPhone = args.isVerifiedPhone || user.isVerifiedPhone
-            user.isNotified = args.isNotified || user.isNotified
-            await user.save()
+            await _user.save()
+            
+            const users = await User.find()
+            pubsub.publish('users', { users })
+
             return true
         },
-        deleteUsers: async (_, { id }, { pubsub }) => {
+        deleteUsers: async (_, { id }, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             for (i of id) {
                 await User.findById(i).deleteOne()
             }
@@ -349,7 +557,10 @@ module.exports = {
             return true
         },
 
+        // Offer
         addOffer: async (_, args, { pubsub }) => {
+            if (!user.auth) return false
+            
             await Offer.create(args)
 
             const offers = await Offer.find()
@@ -358,7 +569,9 @@ module.exports = {
 
             return true
         },
-        editOffer: async (_, args, { pubsub }) => {
+        editOffer: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             const offer = await Offer.findById(args.id)
             offer.user = args.user || offer.user
             offer.hub = args.hub || offer.hub
@@ -377,7 +590,9 @@ module.exports = {
 
             return true
         },
-        deleteOffers: async (_, { offers }, { pubsub }) => {
+        deleteOffers: async (_, { offers }, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             for (offer of offers) {
                 await Offer.findById(offer.id).deleteOne()
             }
@@ -386,13 +601,16 @@ module.exports = {
             pubsub.publish('offers', { offers: newOffers })
 
             for (offer of newOffers) {
-                pubsub.publish('user-articles', { offers: newOffers.filter(o => o.user === offer.user) })
+                pubsub.publish('user-offers', { offers: newOffers.filter(o => o.user === offer.user) })
             }
 
             return true
         },
 
-        addArticle: async (_, args, { storeUpload, pubsub }) => {
+        // Article
+        addArticle: async (_, args, { storeUpload, pubsub, user }) => {
+            if (!user.auth) return false
+            
             const article = await Article.create({
                 author: args.author,
                 title: args.title,
@@ -422,7 +640,9 @@ module.exports = {
 
             return true
         },
-        editArticle: async (_, args, { storeUpload, pubsub }) => {
+        editArticle: async (_, args, { storeUpload, pubsub, user }) => {
+            if (!user.auth) return false
+            
             const article = await Article.findById(args.id)
 
             if (args.image) {
@@ -450,7 +670,9 @@ module.exports = {
 
             return true
         },
-        deleteArticles: async (_, { articles }, { pubsub }) => {
+        deleteArticles: async (_, { articles }, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             for (article of articles) {
                 await Article.findById(article.id).deleteOne()
             }
@@ -465,7 +687,10 @@ module.exports = {
             return true
         },
 
-        addHub: async (_, args, { pubsub }) => {
+        // Hub
+        addHub: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             await Hub.create(args)
 
             const hubs = await Hub.find()
@@ -473,7 +698,9 @@ module.exports = {
 
             return true
         },
-        editHub: async (_, args, { pubsub }) => {
+        editHub: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             const hub = await Hub.findById(args.id)
             
             hub.title = args.title || hub.title
@@ -489,7 +716,9 @@ module.exports = {
 
             return true
         },
-        deleteHubs: async (_, { id }, { pubsub }) => {
+        deleteHubs: async (_, { id }, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             for (i of id) {
                 await Hub.findById(id).deleteOne()
             }
@@ -500,7 +729,10 @@ module.exports = {
             return true
         },
 
-        addChat: async (_, args, { pubsub }) => {
+        // Chat
+        addChat: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             let candidate = await Chat.findOne({
                 owner: args.owner,
                 participants: [args.id, args.owner]
@@ -538,7 +770,9 @@ module.exports = {
 
             return candidate.id
         },
-        closeUserChat: async (_, args, { pubsub }) => {
+        closeUserChat: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             const chat = await UserChat.findOne(args)
             chat.status = 'CLOSE'
             await chat.save()
@@ -552,7 +786,9 @@ module.exports = {
             return true
         },
 
-        addMessage: async (_, args, { pubsub }) => {
+        addMessage: async (_, args, { pubsub, user }) => {
+            if (!user.auth) return false
+            
             await Message.create({
                 ...args,
                 dateCreated: new Date()
@@ -594,35 +830,43 @@ module.exports = {
     },
     Subscription: {
         users: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('users')
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('users')
         },
         hubs: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('hubs'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('hubs'),
             resolve: (payload, { status }) => payload.hubs.filter(hub => hub.status === status)
         },
         offers: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('offers'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('offers'),
             resolve: (payload, { status }) => payload.offers.filter(offer => offer.status === status)
         },
         articles: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('articles'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('articles'),
             resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
         },
 
         userOffers: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('user-offers'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('user-offers'),
             resolve: (payload, { id }) => payload.offers.filter(offer => offer.user === id)
         },
         userArticles: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('user-articles'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('user-articles'),
             resolve: (payload, { id }) => payload.articles.filter(article => article.author === id)
         },
 
         messages: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('message-added'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('message-added'),
         },
         userchats: {
-            subscribe: async (_, args, { pubsub }) => pubsub.asyncIterator('userchats'),
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user.auth) ? null : pubsub.asyncIterator('userchats'),
         }
     }
 }

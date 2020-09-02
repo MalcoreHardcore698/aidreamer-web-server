@@ -1,29 +1,29 @@
+const C = require('../types')
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
 const UserSchema = new Schema({
+    sessionID: { type: String, required: true },
     name: { type: String, required: true },
     password: { type: String, required: true },
     email: { type: String, required: true },
     phone: { type: String },
-    role: {
-        type: String,
-        enum: ['ADMINISTRATOR', 'MODERATOR', 'USER'],
-        required: true
-    },
+    role: { type: Schema.Types.ObjectId, ref: 'Role', required: true },
     avatar: { type: Schema.Types.ObjectId, ref: 'Avatar' },
     availableAvatars: [{ type: Schema.Types.ObjectId, ref: 'Avatar' }],
     level: { type: Number },
     experience: { type: Number },
     balance: { type: Number },
-    offers: [{ type: Schema.Types.ObjectId, ref: 'Offer' }],
     achievements: [{ type: Schema.Types.ObjectId, ref: 'Achievement' }],
-    preferences: [{ type: Schema.Types.ObjectId, ref: 'Hub' }],
-    payment: [{ type: Schema.Types.ObjectId, ref: 'Payment' }],
-    transactions: [{ type: Schema.Types.ObjectId, ref: 'Transaction' }],
-    isVerifiedEmail: { type: Boolean },
-    isVerifiedPhone: { type: Boolean },
-    isNotified: { type: Boolean }
+    settings: [{
+        type: String,
+        enum: [
+            C.VERIFIED_EMAIL,
+            C.VERIFIED_PHONE,
+            C.NOTIFIED_EMAIL
+        ]
+    }],
+    preferences: [{ type: Schema.Types.ObjectId, ref: 'Hub' }]
 }, {
     timestamps: { createdAt: true, updatedAt: true }
 })
