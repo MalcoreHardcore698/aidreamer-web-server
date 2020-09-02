@@ -176,7 +176,7 @@ module.exports = {
         allOffers: async (_, args, { user }) => {
             if (!user.auth) return null
             
-            await Offer.find()
+            return await Offer.find()
         },
         allArticles: async (_, { status }, { user }) => {
             if (!user.auth) return null
@@ -255,10 +255,12 @@ module.exports = {
             
             await Image.findById(id)
         },
-        getUser: async (_,  { sessionID }, { user }) => {
-            if (!user.auth) return null
-            
-            await User.find({ sessionID })
+        getUser: async (_,  { sessionID }, { user, req }) => {
+            const _user = await User.findOne({ sessionID })
+            req.session.user = _user
+            if (sessionID === _user.sessionID)
+                return _user
+            return null
         },
         getOffer: async (_,  { id }, { user }) => {
             if (!user.auth) return null
@@ -558,7 +560,7 @@ module.exports = {
         },
 
         // Offer
-        addOffer: async (_, args, { pubsub }) => {
+        addOffer: async (_, args, { pubsub, user }) => {
             if (!user.auth) return false
             
             await Offer.create(args)

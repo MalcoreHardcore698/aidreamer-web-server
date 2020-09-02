@@ -3,7 +3,6 @@ const { createServer } = require('http')
 const express = require('express')
 const session = require('express-session')
 const mongoose = require('mongoose')
-const cors = require('cors')
 const { ApolloServer, PubSub } = require('apollo-server-express')
 const mkdirp = require('mkdirp')
 const shortid = require('shortid')
@@ -13,6 +12,8 @@ require('dotenv').config()
 
 const UPLOAD_DIR = './uploads'
 mkdirp.sync(UPLOAD_DIR)
+
+const User = require('./models/User')
 
 // Server
 async function start() {
@@ -63,19 +64,15 @@ async function start() {
     const server = new ApolloServer({
         typeDefs,
         resolvers,
-        context: ({ req }) => {
-            const user = {
-                auth: true
-            }
+        context: async ({ req }) => {
+            const sessionID = req.sessionID
+
+            const user = await User.find({ sessionID })
 
             return { storeUpload, pubsub, req, user }
         }
     })
     
-    app.use(cors({
-        credentials: true,
-        origin: 'http://localhost:3000'
-    }))
     app.use(session({
         secret: 'keyboard cat',
         resave: false,
@@ -87,7 +84,10 @@ async function start() {
     app.use('/uploads', express.static('uploads'))
     app.use(express.urlencoded({ extended: true }))
 
-    server.applyMiddleware({ app })
+    server.applyMiddleware({ app, cors: {
+        origin: 'http://localhost:3000',
+        credentials: true
+    }})
     server.installSubscriptionHandlers(http)
 
     app.get('/', (req, res) => {
