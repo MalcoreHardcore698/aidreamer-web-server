@@ -206,9 +206,9 @@ module.exports = gql`
         allImageCategories: [ImageCategory]
         allAchievementAreas: [Area]
         
+        getUser(id: ID): User
         getAvatar(id: ID!): Avatar
         getImage(id: ID!): Image
-        getUser(sessionID: String!): User
         getOffer(id: ID!): Offer
         getArticle(id: ID!): Article
         getHub(id: ID!): Hub

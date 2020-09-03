@@ -65,9 +65,10 @@ async function start() {
         typeDefs,
         resolvers,
         context: async ({ req }) => {
-            const sessionID = req.cookies
+            const cookie = req.headers.cookie
+            const sessionID = (cookie) && cookie.replace(/^secret="(.*)"$/, '$1') || null
 
-            const user = await User.find({ sessionID })
+            const user = await User.findOne({ sessionID })
 
             return { storeUpload, pubsub, req, user }
         }
