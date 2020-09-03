@@ -15,6 +15,28 @@ mkdirp.sync(UPLOAD_DIR)
 
 const User = require('./models/User')
 
+function getCookie(cookie, cname) {
+    const name = cname + "="
+    const decodedCookie = decodeURIComponent(cookie)
+    const ca = decodedCookie.split(';')
+
+    let r = ''
+
+    for(var i = 0; i < ca.length; i++) {
+        let c = ca[i]
+
+        while (c.charAt(0) === ' ') {
+            c = c.substring(1)
+        }
+
+        if (c.indexOf(name) === 0) {
+            r = c.substring(name.length, c.length)
+        }
+    }
+
+    return r.replace('"', '').replace('"', '')
+}
+
 // Server
 async function start() {
     const port = process.env.PORT || 5000
@@ -66,7 +88,7 @@ async function start() {
         resolvers,
         context: async ({ req }) => {
             const cookie = req.headers.cookie
-            const sessionID = (cookie) && cookie.replace(/^secret="(.*)"$/, '$1') || null
+            const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
 
             const user = await User.findOne({ sessionID })
 
