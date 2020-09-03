@@ -65,7 +65,7 @@ async function start() {
         typeDefs,
         resolvers,
         context: async ({ req }) => {
-            const sessionID = req.sessionID
+            const sessionID = req.cookies
 
             const user = await User.find({ sessionID })
 
