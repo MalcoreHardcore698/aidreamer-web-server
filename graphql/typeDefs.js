@@ -108,6 +108,8 @@ module.exports = gql`
         id: ID!
         name: String!
         permissions: [Permission]
+        updatedAt: String,
+        createdAt: String
     }
 
     type Message {
@@ -257,7 +259,11 @@ module.exports = gql`
     type Mutation {
         # Auth/Reg
         register(registerInput: RegisterInput!): User!
-        login(name: String!, password: String!): User!
+        login(
+            name: String!
+            password: String!
+            area: String
+        ): User!
 
         # Avatar
         addAvatar(
@@ -325,7 +331,6 @@ module.exports = gql`
             settings: [Setting]
         ): Boolean!
         editUser(
-            id: ID!
             name: String
             password: String
             email: String
@@ -439,6 +444,7 @@ module.exports = gql`
         hubs: [Hub]
         offers: [Offer]
         articles(status: Status): [Article]
+        roles: [Role]
 
         userOffers(id: ID!): [Offer]
         userArticles(id: ID!): [Article]

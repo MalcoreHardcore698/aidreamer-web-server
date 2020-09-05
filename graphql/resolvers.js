@@ -325,14 +325,23 @@ module.exports = {
     },
     Mutation: {
         // Auth/Reg
-        async login(_, { name, password, sessionID }, { req }) {
+        async login(_, { name, password, area }, { req }) {
             const { errors, valid } = validateLoginInput(name, password)
         
             if (!valid) {
                 throw new UserInputError('Errors', { errors });
             }
-        
+
             const user = await User.findOne({ name })
+
+            if (area) {
+                const role = await Role.findById(user.role)
+                
+                if (!role.permissions.find(p => p === C.ACCESS_DASHBOARD)) {
+                    errors.general = 'Not enough permissions'
+                    throw new UserInputError('Not enough permissions', { errors })
+                }
+            }
         
             if (!user) {
                 errors.general = 'User not found'
@@ -345,10 +354,12 @@ module.exports = {
                 throw new UserInputError('Wrong crendetials', { errors })
             }
             
+            const sessionID = req.sessionID
             req.session.user = user
+
             if (sessionID === user.sessionID) return user
             else {
-                user.sessionID = req.sessionID
+                user.sessionID = sessionID
                 await user.save()
             }
         
@@ -479,14 +490,17 @@ module.exports = {
         },
 
         // Role
-        addRole: async (_, args, { user }) => {
+        addRole: async (_, args, { pubsub, user }) => {
             if (!user) return false
 
             await Role.create(args)
 
+            const roles = await Role.find()
+            pubsub.publish('roles', { roles })
+
             return true
         },
-        editRole: async (_, args, { user }) => {
+        editRole: async (_, args, { pubsub, user }) => {
             if (!user) return false
 
             const role = await Role.findById(args.id)
@@ -496,14 +510,20 @@ module.exports = {
 
             await role.save()
 
+            const roles = await Role.find()
+            pubsub.publish('roles', { roles })
+
             return true
         },
-        deleteRoles: async (_, { id }, { user }) => {
+        deleteRoles: async (_, { id }, { pubsub, user }) => {
             if (!user) return false
             
             for (i of id) {
                 await Role.findById(i).deleteOne()
             }
+
+            const roles = await Role.find()
+            pubsub.publish('roles', { roles })
 
             return true
         },
@@ -526,7 +546,7 @@ module.exports = {
         editUser: async (_, args, { pubsub, user }) => {
             if (!user) return false
             
-            const _user = await User.findById(args.id)
+            const _user = await User.findOne({ name: args.name })
             const avatar = await Avatar.findById(args.avatar)
 
             _user.name = args.name || _user.name
@@ -853,6 +873,10 @@ module.exports = {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('articles'),
             resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
+        },
+        roles: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('roles')
         },
 
         userOffers: {
