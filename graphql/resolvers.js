@@ -4,6 +4,7 @@ const User = require('./../models/User')
 const UserChat = require('./../models/UserChat')
 const Chat = require('./../models/Chat')
 const Message = require('./../models/Message')
+const Notification = require('./../models/Notification')
 const Role = require('./../models/Role')
 const Offer = require('./../models/Offer')
 const Article = require('./../models/Article')
@@ -57,6 +58,9 @@ module.exports = {
             return hubs
         },
         chats: async (parent) => await UserChat.find({ sender: parent.id, status: C.OPEN_CHAT })
+    },
+    Notification: {
+        user: async (parent) => await User.findById(parent.user)
     },
     Message: {
         chat: async (parent) => await Chat.findById(parent.chat),
@@ -152,6 +156,12 @@ module.exports = {
             
             const userChats = await UserChat.find({ user: user.id })
             return userChats || []
+        },
+        allUserNotifications: async (_, args, { user }) => {
+            if (!user) return null
+
+            const notifications = await Notification.find({ user: user.id })
+            return notifications || []
         },
         allChatMessages: async (_, { id }, { user }) => {
             if (!user) return null
@@ -791,7 +801,7 @@ module.exports = {
             }
 
             const chats = await UserChat.find({
-                sender: user.id,
+                user: user.id,
                 status: C.OPEN_CHAT
             })
             pubsub.publish('user-chats', { chats })
@@ -799,8 +809,7 @@ module.exports = {
             return userChat
         },
         addUserChatMessage: async (_, args, { pubsub, user }) => {
-            if (!user)
-                return false
+            if (!user) return false
 
             const chat = await Chat.findById(args.id)
 
@@ -810,15 +819,45 @@ module.exports = {
                 text: args.text,
                 type: C.UNREADED
             })
-            chat.messages.push(message)
             
+            chat.messages.push(message)
             await chat.save()
 
             const messages = await Message.find({
-                chat: chat.id,
-                user: user.id
+                chat: chat.id
             })
             pubsub.publish('messages', { messages })
+
+            for (let member of chat.members) {
+                if (!member.equals(user._id)) {
+                    const candidateChat = await UserChat.findOne({ user: member })
+                    
+                    if (candidateChat && chat._id.equals(candidateChat.chat)) {
+                        candidateChat.status = C.OPEN_CHAT
+                    } else {
+                        await UserChat.create({
+                            user: member,
+                            chat: chat.id,
+                            interlocutor: user.id,
+                            status: C.OPEN_CHAT
+                        })
+
+                        const chats = await UserChat.find({
+                            user: member,
+                            status: C.OPEN_CHAT
+                        })
+                        pubsub.publish('user-chats', { chats })
+                    }
+
+                    await Notification.create({
+                        user: member,
+                        text: `${user.name} sent you message`
+                    })
+
+                    const notifications = await Notification.find({ user: member })
+                    pubsub.publish('notifications', { notifications })
+                }
+            }
 
             return true
         }
@@ -849,8 +888,18 @@ module.exports = {
         },
         messages: {
             subscribe: async (_, args, { pubsub, user }) =>
-                pubsub.asyncIterator('messages'),
-            resolve: async (payload, args, { user }) => payload.messages.filter(message => message.chat.equals(user.id))
+                (!user) ? null : pubsub.asyncIterator('messages'),
+            resolve: async (payload, { id }) => {
+                // console.log(payload.messages)
+                return payload.messages.filter(message => message.chat.equals(id))
+            }
+        },
+        notifications: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('notifications'),
+            resolve: async (payload, args, { user }) => {
+                return payload.notifications.filter(notification => notification.user.equals(user._id))
+            }
         },
 
         userOffers: {

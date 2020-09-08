@@ -106,7 +106,7 @@ module.exports = gql`
         achievements: [Achievement]
         settings: [Setting]
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
     }
 
     type Role {
@@ -114,7 +114,15 @@ module.exports = gql`
         name: String!
         permissions: [Permission]
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
+    }
+
+    type Notification {
+        id: ID!
+        user: User!
+        text: String!
+        updatedAt: String,
+        createdAt: String!
     }
 
     type Message {
@@ -199,6 +207,7 @@ module.exports = gql`
         allUserArticles: [Article]
         allUserOffers: [Offer]
         allUserChats: [UserChat]
+        allUserNotifications: [Notification]
 
         allImages: [Image]
         allAvatars: [Avatar]
@@ -433,10 +442,11 @@ module.exports = gql`
     ## SUBSCRIPTIONS ##
     type Subscription {
         users: [User]
-        hubs: [Hub]
-        offers: [Offer]
         roles: [Role]
         messages: [Message]
+        notifications: [Notification]
+        hubs: [Hub]
+        offers: [Offer]
         articles(status: Status): [Article]
 
         userOffers(name: String!): [Offer]
