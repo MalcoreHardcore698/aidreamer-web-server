@@ -8,6 +8,7 @@ const Notification = require('./../models/Notification')
 const Role = require('./../models/Role')
 const Offer = require('./../models/Offer')
 const Article = require('./../models/Article')
+const Comment = require('./../models/Comment')
 const Hub = require('./../models/Hub')
 const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
@@ -119,7 +120,12 @@ module.exports = {
 
             return await Image.findById(parent.image)
         },
-        hub: async (parent) => await Hub.findById(parent.hub)
+        hub: async (parent) => await Hub.findById(parent.hub),
+        comments: async (parent) => await Comment.find({ article: parent.id })
+    },
+    Comment: {
+        article: async (parent) => await Article.findById(parent.article),
+        user: async (parent) => await User.findById(parent.user)
     },
     Offer: {
         id: parent => parent.id,
@@ -201,6 +207,12 @@ module.exports = {
             if (status) return articles.filter(n => n.status === status)
             return articles
         },
+        allArticleComments: async (_, { id }, { user }) => {
+            if (!user) return null
+
+            const comments = await Comment.find({ article: id })
+            return comments || []
+        },
         allHubs: async (_, { status }, { user }) => {
             if (!user) return null
             
@@ -275,58 +287,64 @@ module.exports = {
         getAvatar: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            await Avatar.findById(id)
+            return await Avatar.findById(id)
         },
         getImage: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            await Image.findById(id)
+            return await Image.findById(id)
         },
         getOffer: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            await Offer.findById(id)
+            return await Offer.findById(id)
         },
         getArticle: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            await Article.findById(id)
+            return await Article.findById(id)
         },
         getHub: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            await Hub.findById(id)
+            return await Hub.findById(id)
         },
 
         countAvatars: async (_, args, { user }) => {
             if (!user) return null
             
-            await Avatar.estimatedDocumentCount()
+            return await Avatar.estimatedDocumentCount()
         },
         countImages: async (_, args, { user }) => {
             if (!user) return null
             
-            await Image.estimatedDocumentCount()
+            return await Image.estimatedDocumentCount()
         },
         countUsers: async (_, args, { user }) => {
             if (!user) return null
             
-            await User.estimatedDocumentCount()
+            return await User.estimatedDocumentCount()
         },
         countOffers: async (_, args, { user }) => {
             if (!user) return null
             
-            await Offer.estimatedDocumentCount()
+            return await Offer.estimatedDocumentCount()
         },
         countArticles: async (_, args, { user }) => {
             if (!user) return null
             
-            await Article.estimatedDocumentCount()
+            return await Article.estimatedDocumentCount()
+        },
+        countComments: async (_, { id }, { user }) => {
+            if (!user) return null
+
+            if (!id) return await Comment.find().estimatedDocumentCount()
+            return await Comment.find({ article: id }).estimatedDocumentCount()
         },
         countHubs: async (_, args, { user }) => {
             if (!user) return null
             
-            await Hub.estimatedDocumentCount()
+            return await Hub.estimatedDocumentCount()
         }
     },
     Mutation: {
@@ -723,6 +741,66 @@ module.exports = {
 
             return true
         },
+        addComment: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            try {
+                await Comment.create({
+                    ...args,
+                    user: user.id
+                })
+    
+                const comments = await Comment.find({ article: args.article })
+                pubsub.publish('comments', { comments })
+            } catch (err) {
+                console.log(err)
+                throw new Error('Failed to create a new comment')
+            }
+
+            try {
+                const article = await Article.findById(args.article)
+                const authorArticle = await User.findById(article.author)
+
+                if (authorArticle.id !== user.id) {
+                    await Notification.create({
+                        user: authorArticle.id,
+                        text: `${user.name} left a comment on the ${article.title}`
+                    })
+        
+                    const notifications = await Notification.find({ user: authorArticle.id })
+                    pubsub.publish('notifications', { notifications })
+                }
+            } catch (err) {
+                console.log(err)
+                throw new Error('Failed to notify author about a new comment')
+            }
+
+            return true
+        },
+        editComment: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const comment = await Comment.findById(args.id)
+
+            comment.user = args.user || comment.user
+            comment.article = args.article || comment.article
+            comment.text = args.text || comment.text
+            await comment.save()
+
+            return true
+        },
+        deleteComments: async (_, { article, id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Comment.findById(i).deleteOne()
+            }
+
+            const comments = await Comment.find({ article })
+            pubsub.publish('comments', { comments })
+
+            return true
+        },
 
         // Hub
         addHub: async (_, args, { pubsub, user }) => {
@@ -881,6 +959,11 @@ module.exports = {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('articles'),
             resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
+        },
+        comments: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('comments'),
+            resolve: (payload, { id }) => payload.comments.filter(comment => comment.article === id)
         },
         roles: {
             subscribe: async (_, args, { pubsub, user }) =>

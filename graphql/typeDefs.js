@@ -196,10 +196,11 @@ module.exports = gql`
 
     type Comment {
         id: ID!
-        user: ID!
-        message: String!
+        user: User!
+        article: Article!
+        text: String!
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
     }
 
     type Query {
@@ -217,6 +218,7 @@ module.exports = gql`
         allChatMessages(id: ID!): [Message]
         allOffers(status: Status): [Offer]
         allArticles(status: Status): [Article]
+        allArticleComments(id: ID!): [Comment]
         allHubs(status: Status): [Hub]
         allPermissions: [Permission]
         allSettings: [Setting]
@@ -235,6 +237,7 @@ module.exports = gql`
         countUsers: Int!
         countOffers: Int!
         countArticles: Int!
+        countComments(id: ID): Int!
         countHubs: Int!
     }
 
@@ -254,8 +257,10 @@ module.exports = gql`
     }
 
     input InputComment {
-        user: ID!
-        message: String!
+        id: ID
+        user: ID
+        article: ID
+        text: String
     }
 
     input InputOffer {
@@ -388,6 +393,21 @@ module.exports = gql`
         deleteArticles(
             articles: [InputArticle]
         ): Boolean!
+
+        addComment(
+            article: ID!
+            text: String!
+        ): Boolean!
+        editComment(
+            id: ID!
+            user: ID
+            article: ID
+            text: String
+        ): Boolean!
+        deleteComments(
+            id: [ID]!
+            article: ID!
+        ): Boolean!
         
         # Hub
         addHub(
@@ -448,6 +468,7 @@ module.exports = gql`
         hubs: [Hub]
         offers: [Offer]
         articles(status: Status): [Article]
+        comments(id: ID!): [Comment]
 
         userOffers(name: String!): [Offer]
         userArticles(name: String!): [Article]
