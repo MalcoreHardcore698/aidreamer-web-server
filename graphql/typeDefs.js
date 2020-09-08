@@ -35,8 +35,8 @@ module.exports = gql`
     }
 
     enum ChatStatus {
-        OPEN
-        CLOSE
+        OPEN_CHAT
+        CLOSE_CHAT
     }
 
     enum Area {
@@ -50,6 +50,11 @@ module.exports = gql`
     enum ImageCategory {
         ICON
         POSTER
+    }
+
+    enum MessageType {
+        READED
+        UNREADED
     }
 
     ## TYPES ##
@@ -113,32 +118,31 @@ module.exports = gql`
     }
 
     type Message {
-        id: ID!
         chat: Chat!
-        sender: User!
-        receiver: User!
-        message: String!
+        user: User!
+        text: String!
+        type: MessageType!
         updatedAt: String
         createdAt: String!
     }
-    
+
     type Chat {
         id: ID!
-        owner: ID!
         title: String!
-        participants: [User!]!
-        messages: [Message]
+        members: [User]!
+        messages: [Message]!
         updatedAt: String
         createdAt: String!
     }
 
     type UserChat {
         id: ID!
-        userId: ID!
-        chatId: ID!
+        chat: Chat!
+        user: User!
+        interlocutor: User!
         status: ChatStatus!
-        updatedAt: String,
-        createdAt: String
+        updatedAt: String
+        createdAt: String!
     }
 
     type Offer {
@@ -192,14 +196,16 @@ module.exports = gql`
 
     type Query {
         allUsers: [User]
-        allUserArticles(id: ID!): [Article]
-        allUserOffers(id: ID!): [Offer]
+        allUserArticles: [Article]
+        allUserOffers: [Offer]
+        allUserChats: [UserChat]
 
         allImages: [Image]
         allAvatars: [Avatar]
         allRoles: [Role]
-        allChats: [Chat]
         allStatus: [Status]
+        allChats: [Chat]
+        allChatMessages(id: ID!): [Message]
         allOffers(status: Status): [Offer]
         allArticles(status: Status): [Article]
         allHubs(status: Status): [Hub]
@@ -214,7 +220,6 @@ module.exports = gql`
         getOffer(id: ID!): Offer
         getArticle(id: ID!): Article
         getHub(id: ID!): Hub
-        getChat(id: ID!): Chat
 
         countAvatars: Int!
         countImages: Int!
@@ -222,7 +227,6 @@ module.exports = gql`
         countOffers: Int!
         countArticles: Int!
         countHubs: Int!
-        countChats: Int!
     }
 
     # Inputs
@@ -247,12 +251,12 @@ module.exports = gql`
 
     input InputOffer {
         id: ID!
-        user: ID!
+        user: String!
     }
 
     input InputArticle {
         id: ID!
-        author: ID!
+        author: String!
     }
     
     ## MUTATIONS ##
@@ -351,7 +355,7 @@ module.exports = gql`
 
         # Article
         addArticle(
-            author: ID!
+            author: String!
             title: String!
             description: String!
             body: String!
@@ -400,7 +404,6 @@ module.exports = gql`
         
         # Offer
         addOffer(
-            user: ID!
             hub: ID!
             title: String!
             message: String!
@@ -408,7 +411,6 @@ module.exports = gql`
         ): Boolean!
         editOffer(
             id: ID!
-            user: ID
             hub: ID
             title: String
             message: String
@@ -419,22 +421,12 @@ module.exports = gql`
         ): Boolean!
         
         # Chat
-        addChat(
+        openUserChat(
+            name: String!
+        ): UserChat
+        addUserChatMessage(
             id: ID!
-            title: String!
-            participants: [UserIDInput!]!
-            owner: ID!
-        ): ID!
-        closeUserChat(
-            userId: ID!
-            chatId: ID!
-        ): Boolean!
-
-        addMessage(
-            chat: ID!
-            sender: ID!
-            receiver: ID!
-            message: String!
+            text: String!
         ): Boolean!
     }
 
@@ -443,13 +435,12 @@ module.exports = gql`
         users: [User]
         hubs: [Hub]
         offers: [Offer]
-        articles(status: Status): [Article]
         roles: [Role]
+        messages: [Message]
+        articles(status: Status): [Article]
 
-        userOffers(id: ID!): [Offer]
-        userArticles(id: ID!): [Article]
-
-        messages(chat: ID!): [Message]
-        userchats(user: ID!): [UserChat]
+        userOffers(name: String!): [Offer]
+        userArticles(name: String!): [Article]
+        userChats(name: String!): [UserChat]
     }
 `

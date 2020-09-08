@@ -86,13 +86,18 @@ async function start() {
     const server = new ApolloServer({
         typeDefs,
         resolvers,
-        context: async ({ req }) => {
-            const cookie = req.headers.cookie
-            const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
+        context: async ({ req, connection }) => {
+            if (connection) {
+                return { storeUpload, pubsub }
+            } else {
+                const cookie = req.headers.cookie
+                const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
+    
+                const user = await User.findOne({ sessionID })
+    
+                return { storeUpload, pubsub, req, user }
+            }
 
-            const user = await User.findOne({ sessionID })
-
-            return { storeUpload, pubsub, req, user }
         }
     })
     
