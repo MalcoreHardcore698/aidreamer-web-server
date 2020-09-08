@@ -5,6 +5,7 @@ const UserChat = require('./../models/UserChat')
 const Chat = require('./../models/Chat')
 const Message = require('./../models/Message')
 const Notification = require('./../models/Notification')
+const Language = require('./../models/Language')
 const Role = require('./../models/Role')
 const Offer = require('./../models/Offer')
 const Article = require('./../models/Article')
@@ -12,6 +13,7 @@ const Comment = require('./../models/Comment')
 const Hub = require('./../models/Hub')
 const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
+const Icon = require('./../models/Icon')
 
 const bcrypt = require('bcryptjs')
 const { UserInputError } = require('apollo-server-express')
@@ -23,6 +25,9 @@ const {
 
 module.exports = {
     Avatar: {
+        hub: async (parent) => await Hub.findById(parent.hub)
+    },
+    Icon: {
         hub: async (parent) => await Hub.findById(parent.hub)
     },
     User: {
@@ -175,6 +180,11 @@ module.exports = {
             const messages = await Message.find({ chat: id })
             return messages
         },
+        allLanguages: async (_, args, { user }) => {
+            if (!user) return null
+
+            return await Language.find()
+        },
         allRoles: async (_, args, { user }) => {
             if (!user) return null
 
@@ -189,6 +199,11 @@ module.exports = {
             if (!user) return null
             
             return await Avatar.find()
+        },
+        allIcons: async (_, args, { user }) => {
+            if (!user) return null
+
+            return await Icon.find()
         },
         allStatus: (_, args, { user }) => {
             if (!user) return null
@@ -253,14 +268,6 @@ module.exports = {
                 C.NOTIFIED_EMAIL
             ])
         },
-        allImageCategories: (_, args, { user }) => {
-            if (!user) return null
-            
-            return ([
-                C.ICON,
-                C.POSTER
-            ])
-        },
         allAchievementAreas: (_, args, { user }) => {
             if (!user) return null
             
@@ -293,6 +300,11 @@ module.exports = {
             if (!user) return null
             
             return await Image.findById(id)
+        },
+        getIcon: async (_,  { id }, { user }) => {
+            if (!user) return null
+            
+            return await Icon.findById(id)
         },
         getOffer: async (_,  { id }, { user }) => {
             if (!user) return null
@@ -472,7 +484,7 @@ module.exports = {
 
             return true
         },
-        deleteAvatar: async (_, { id, user }) => {
+        deleteAvatars: async (_, { id, user }) => {
             if (!user) return false
             
             await Avatar.findById(id).deleteOne()
@@ -486,8 +498,7 @@ module.exports = {
             const image = await storeUpload(args.name, args.file)
             await Image.create({
                 name: args.name,
-                path: image.path,
-                category: args.category
+                path: image.path
             })
             return true
         },
@@ -499,17 +510,77 @@ module.exports = {
 
             image.name = args.name || image.name
             image.path = (file && file.path) || image.path
-            image.category = args.category || image.category
             await image.save()
             
             return true
         },
-        deleteImage: async (_, { id }, { user }) => {
+        deleteImages: async (_, { id }, { user }) => {
             if (!user) return false
             
             for (i of id) {
                 await Image.findById(id).deleteOne()
             }
+            return true
+        },
+
+        // Icon
+        addIcon: async (_, args, { storeUpload, user }) => {
+            if (!user) return false
+            
+            const icon = await storeUpload(args.name, args.file)
+            await Icon.create({
+                name: args.name,
+                path: icon.path,
+                hub: args.hub
+            })
+            return true
+        },
+        editIcon: async (_, args, { storeUpload, user }) => {
+            if (!user) return false
+            
+            const icon = await Icon.findById(args.id)
+            const file = args.file && await storeUpload(args.name, args.file)
+
+            icon.name = args.name || icon.name
+            icon.path = (file && file.path) || icon.path
+            icon.hub = args.hub || icon.hub
+            await icon.save()
+            
+            return true
+        },
+        deleteIcons: async (_, { id }, { user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Icon.findById(id).deleteOne()
+            }
+            return true
+        },
+
+        // Language
+        addLanguage: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            await Language.create(args)
+
+            return true
+        },
+        editLanguage: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const language = await Language.findById(args.id)
+            language.code = args.code || language.code
+            await language.save()
+
+            return true
+        },
+        deleteLanguages: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Language.findById(i).deleteOne()
+            }
+
             return true
         },
 
@@ -679,8 +750,7 @@ module.exports = {
                 const file = await storeUpload(args.image)
                 const image = (file) && await Image.create({
                     name: file.filename,
-                    path: file.path,
-                    category: 'POSTER'
+                    path: file.path
                 })
 
                 if (image) {
@@ -704,8 +774,7 @@ module.exports = {
                 const file = await storeUpload(args.image)
                 const image = (file) && await Image.create({
                     name: file.filename,
-                    path: file.path,
-                    category: 'POSTER'
+                    path: file.path
                 })
 
                 if (image) article.image = image.id

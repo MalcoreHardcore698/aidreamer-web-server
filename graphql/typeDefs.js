@@ -47,11 +47,6 @@ module.exports = gql`
         PROFILE
     }
 
-    enum ImageCategory {
-        ICON
-        POSTER
-    }
-
     enum MessageType {
         READED
         UNREADED
@@ -62,9 +57,8 @@ module.exports = gql`
         id: ID!
         name: String!
         path: String!
-        category: ImageCategory!
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
     }
 
     type Avatar {
@@ -75,7 +69,23 @@ module.exports = gql`
         complexity: Int!
         hub: Hub!
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
+    }
+
+    type Icon {
+        id: ID!
+        name: String!
+        path: String!
+        hub: Hub!
+        updatedAt: String,
+        createdAt: String!
+    }
+
+    type Language {
+        id: ID!
+        code: String!
+        updatedAt: String,
+        createdAt: String!
     }
 
     type Achievement {
@@ -84,7 +94,7 @@ module.exports = gql`
         description: String!
         area: Area!
         updatedAt: String,
-        createdAt: String
+        createdAt: String!
     }
 
     type User {
@@ -169,7 +179,7 @@ module.exports = gql`
         title: String!
         description: String!
         slogan: String!
-        icon: Image!
+        icon: Icon!
         color: String!
         offers: [Offer]
         countUsers: Int
@@ -212,6 +222,7 @@ module.exports = gql`
 
         allImages: [Image]
         allAvatars: [Avatar]
+        allIcons: [Icon]
         allRoles: [Role]
         allStatus: [Status]
         allChats: [Chat]
@@ -222,12 +233,13 @@ module.exports = gql`
         allHubs(status: Status): [Hub]
         allPermissions: [Permission]
         allSettings: [Setting]
-        allImageCategories: [ImageCategory]
+        allLanguages: [Language]
         allAchievementAreas: [Area]
         
         getUser(id: ID): User
         getAvatar(id: ID!): Avatar
         getImage(id: ID!): Image
+        getIcon(id: ID!): Icon
         getOffer(id: ID!): Offer
         getArticle(id: ID!): Article
         getHub(id: ID!): Hub
@@ -283,6 +295,20 @@ module.exports = gql`
             area: String
         ): User!
 
+        # Image
+        addImage(
+            name: String!
+            file: Upload!
+        ): Boolean!
+        editImage(
+            id: ID!
+            name: String
+            file: Upload
+        ): Boolean!
+        deleteImages(
+            id: [ID]!
+        ): Boolean!
+
         # Avatar
         addAvatar(
             order: Int!
@@ -298,23 +324,33 @@ module.exports = gql`
             complexity: Int
             hub: ID
         ): Boolean!
-        deleteAvatar(
+        deleteAvatars(
             id: [ID]!
         ): Boolean!
 
-        # Image
-        addImage(
+        # Icon
+        addIcon(
             name: String!
             file: Upload!
-            category: ImageCategory!
         ): Boolean!
-        editImage(
+        editIcon(
             id: ID!
             name: String
             file: Upload
-            category: ImageCategory
         ): Boolean!
-        deleteImage(
+        deleteIcons(
+            id: [ID]!
+        ): Boolean!
+
+        # Language
+        addLanguage(
+            code: String!
+        ): Boolean!
+        editLanguage(
+            id: ID!
+            code: String
+        ): Boolean!
+        deleteLanguages(
             id: [ID]!
         ): Boolean!
 
@@ -469,6 +505,9 @@ module.exports = gql`
         offers: [Offer]
         articles(status: Status): [Article]
         comments(id: ID!): [Comment]
+        images: [Image]
+        avatars: [Avatar]
+        icons: [Icon]
 
         userOffers(name: String!): [Offer]
         userArticles(name: String!): [Article]

@@ -1,14 +1,9 @@
-const C = require('../types')
 const mongoose = require('mongoose')
+const { Schema } = mongoose
  
-const ImageSchema = mongoose.Schema({
+const ImageSchema = new Schema({
     name: { type: String, required: true },
-    path: { type: String, required: true },
-    category:  {
-        type: String,
-        enum: [C.ICON, C.POSTER],
-        required: true
-    }
+    path: { type: String, required: true }
 }, {
     timestamps: { createdAt: true, updatedAt: true }
 })
