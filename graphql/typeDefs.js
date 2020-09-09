@@ -39,6 +39,11 @@ module.exports = gql`
         CLOSE_CHAT
     }
 
+    enum ChatType {
+        USER_CHAT
+        GROUP_CHAT
+    }
+
     enum Area {
         HUB
         OFFER
@@ -55,8 +60,8 @@ module.exports = gql`
     ## TYPES ##
     type Image {
         id: ID!
-        name: String!
         path: String!
+        name: String!
         updatedAt: String,
         createdAt: String!
     }
@@ -74,9 +79,9 @@ module.exports = gql`
 
     type Icon {
         id: ID!
+        hub: Hub!
         name: String!
         path: String!
-        hub: Hub!
         updatedAt: String,
         createdAt: String!
     }
@@ -146,6 +151,7 @@ module.exports = gql`
 
     type Chat {
         id: ID!
+        type: ChatType!
         title: String!
         members: [User]!
         messages: [Message]!
@@ -226,6 +232,7 @@ module.exports = gql`
         allRoles: [Role]
         allStatus: [Status]
         allChats: [Chat]
+        allChatTypes: [ChatType]
         allChatMessages(id: ID!): [Message]
         allOffers(status: Status): [Offer]
         allArticles(status: Status): [Article]
@@ -297,12 +304,10 @@ module.exports = gql`
 
         # Image
         addImage(
-            name: String!
             file: Upload!
         ): Boolean!
         editImage(
             id: ID!
-            name: String
             file: Upload
         ): Boolean!
         deleteImages(
@@ -312,14 +317,13 @@ module.exports = gql`
         # Avatar
         addAvatar(
             order: Int!
-            name: String!
             file: Upload!
             complexity: Int!
             hub: ID!
         ): Boolean!
         editAvatar(
             id: ID!
-            name: String
+            order: Int
             file: Upload
             complexity: Int
             hub: ID
@@ -330,13 +334,13 @@ module.exports = gql`
 
         # Icon
         addIcon(
-            name: String!
             file: Upload!
+            hub: ID!
         ): Boolean!
         editIcon(
             id: ID!
-            name: String
             file: Upload
+            hub: ID
         ): Boolean!
         deleteIcons(
             id: [ID]!
@@ -430,6 +434,7 @@ module.exports = gql`
             articles: [InputArticle]
         ): Boolean!
 
+        # Comment
         addComment(
             article: ID!
             text: String!
@@ -486,6 +491,22 @@ module.exports = gql`
         ): Boolean!
         
         # Chat
+        addChat(
+            type: ChatType!
+            title: String!
+            members: [String]!
+        ): Boolean!
+        editChat(
+            id: ID!
+            type: ChatType
+            title: String
+            members: [String]
+        ): Boolean!
+        deleteChats(
+            id: [ID]!
+        ): Boolean!
+
+        # UserChat
         openUserChat(
             name: String!
         ): UserChat
@@ -498,7 +519,7 @@ module.exports = gql`
     ## SUBSCRIPTIONS ##
     type Subscription {
         users: [User]
-        roles: [Role]
+        chats: [Chat]
         messages: [Message]
         notifications: [Notification]
         hubs: [Hub]
@@ -508,6 +529,8 @@ module.exports = gql`
         images: [Image]
         avatars: [Avatar]
         icons: [Icon]
+        roles: [Role]
+        languages: [Language]
 
         userOffers(name: String!): [Offer]
         userArticles(name: String!): [Article]

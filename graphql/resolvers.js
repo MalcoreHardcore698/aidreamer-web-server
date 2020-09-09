@@ -174,6 +174,17 @@ module.exports = {
             const notifications = await Notification.find({ user: user.id })
             return notifications || []
         },
+        allChats: async (_, args, { user }) => {
+            if (!user) return null
+
+            const chats = await Chat.find()
+            return chats
+        },
+        allChatTypes: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([ C.USER_CHAT, C.GROUP_CHAT ])
+        },
         allChatMessages: async (_, { id }, { user }) => {
             if (!user) return null
 
@@ -456,104 +467,139 @@ module.exports = {
         },
 
         // Avatar
-        addAvatar: async (_, args, { storeUpload, user }) => {
+        addAvatar: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
-            const avatar = await storeUpload(args.name, args.file)
+            const file = await storeUpload(args.file)
             await Avatar.create({
                 order: args.order,
-                name: args.name,
-                path: avatar.path,
+                name: file.filename,
+                path: file.path,
                 complexity: args.complexity,
                 hub: args.hub
             })
+
+            const avatars = await Avatar.find()
+            pubsub.publish('avatars', { avatars })
+
             return true
         },
-        editAvatar: async (_, args, { storeUpload, user }) => {
+        editAvatar: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
             const avatar = await Avatar.findById(args.id)
-            const file = args.file && await storeUpload(args.name, args.file)
+            const file = args.file && await storeUpload(args.file)
 
             avatar.order = args.order || avatar.order
-            avatar.name = args.name || avatar.name
-            avatar.path = (file && file.path) || avatar.path
+            avatar.name = args.name || file.filename
+            avatar.path = (file && file.path) || file.path
             avatar.complexity = args.complexity || avatar.complexity
             avatar.hub = args.hub || avatar.hub
             await avatar.save()
 
+            const avatars = await Avatar.find()
+            pubsub.publish('avatars', { avatars })
+
             return true
         },
-        deleteAvatars: async (_, { id, user }) => {
+        deleteAvatars: async (_, { id, user }, { pubsub }) => {
             if (!user) return false
             
             await Avatar.findById(id).deleteOne()
+
+            const avatars = await Avatar.find()
+            pubsub.publish('avatars', { avatars })
+
             return true
         },
 
         // Image
-        addImage: async (_, args, { storeUpload, user }) => {
+        addImage: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
-            const image = await storeUpload(args.name, args.file)
+            const file = await storeUpload(args.file)
             await Image.create({
-                name: args.name,
-                path: image.path
+                name: file.name,
+                path: file.path,
+                hub: args.hub
             })
+
+            const images = await Image.find()
+            pubsub.publish('images', { images })
+
             return true
         },
-        editImage: async (_, args, { storeUpload, user }) => {
+        editImage: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
             const image = await Image.findById(args.id)
-            const file = args.file && await storeUpload(args.name, args.file)
+            const file = args.file && await storeUpload(args.file)
 
-            image.name = args.name || image.name
-            image.path = (file && file.path) || image.path
+            image.name = args.name || file.filename
+            image.path = (file && file.path) || file.path
+            image.hub = args.hub || image.hub
             await image.save()
+
+            const images = await Image.find()
+            pubsub.publish('images', { images })
             
             return true
         },
-        deleteImages: async (_, { id }, { user }) => {
+        deleteImages: async (_, { id }, { pubsub, user }) => {
             if (!user) return false
             
             for (i of id) {
                 await Image.findById(id).deleteOne()
             }
+
+            const images = await Image.find()
+            pubsub.publish('images', { images })
+
             return true
         },
 
         // Icon
-        addIcon: async (_, args, { storeUpload, user }) => {
+        addIcon: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
-            const icon = await storeUpload(args.name, args.file)
+            const file = await storeUpload(args.file)
             await Icon.create({
-                name: args.name,
-                path: icon.path,
+                name: file.filename,
+                path: file.path,
                 hub: args.hub
             })
+
+            const icons = await Icon.find()
+            pubsub.publish('icons', { icons })
+
             return true
         },
-        editIcon: async (_, args, { storeUpload, user }) => {
+        editIcon: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
             const icon = await Icon.findById(args.id)
-            const file = args.file && await storeUpload(args.name, args.file)
+            const file = args.file && await storeUpload(args.file)
 
-            icon.name = args.name || icon.name
+            icon.name = args.name || icon.filename
             icon.path = (file && file.path) || icon.path
             icon.hub = args.hub || icon.hub
             await icon.save()
+
+            const icons = await Icon.find()
+            pubsub.publish('icons', { icons })
             
             return true
         },
-        deleteIcons: async (_, { id }, { user }) => {
+        deleteIcons: async (_, { id }, { pubsub, user }) => {
             if (!user) return false
             
             for (i of id) {
                 await Icon.findById(id).deleteOne()
             }
+
+            const icons = await Icon.find()
+            pubsub.publish('icons', { icons })
+
             return true
         },
 
@@ -562,6 +608,9 @@ module.exports = {
             if (!user) return false
 
             await Language.create(args)
+
+            const languages = await Language.find()
+            pubsub.publish('languages', { languages })
 
             return true
         },
@@ -572,6 +621,9 @@ module.exports = {
             language.code = args.code || language.code
             await language.save()
 
+            const languages = await Language.find()
+            pubsub.publish('languages', { languages })
+
             return true
         },
         deleteLanguages: async (_, { id }, { pubsub, user }) => {
@@ -580,6 +632,9 @@ module.exports = {
             for (i of id) {
                 await Language.findById(i).deleteOne()
             }
+
+            const languages = await Language.find()
+            pubsub.publish('languages', { languages })
 
             return true
         },
@@ -914,6 +969,64 @@ module.exports = {
         },
 
         // Chat
+        addChat: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const members = []
+
+            for (let member of args.members) {
+                const _user = await User.findOne({ name: member })
+                if (_user) members.push(_user.id)
+            }
+            
+            await Chat.create({
+                type: args.type,
+                title: args.title,
+                members
+            })
+
+            const chats = await Chat.find()
+            pubsub.publish('chats', { chats })
+
+            return true
+        },
+        editChat: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const chat = await Chat.findById(args.id)
+
+            const members = []
+
+            for (let member of args.members) {
+                const _user = await User.findOne({ name: member })
+                if (_user) members.push(_user.id)
+            }
+            
+            chat.type = args.type || chat.type
+            chat.title = args.title || chat.title
+            chat.members = members || chat.members
+
+            await chat.save()
+
+            const chats = await Chat.find()
+            pubsub.publish('chats', { chats })
+
+            return true
+        },
+        deleteChats: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Chat.findById(id).deleteOne()
+            }
+
+            const chats = await Chat.find()
+            pubsub.publish('chats', { chats })
+
+            return true
+        },
+
+        // UserChat
         openUserChat: async (_, { name }, { pubsub, user }) => {
             if (!user)
                 return false
@@ -1010,6 +1123,18 @@ module.exports = {
         }
     },
     Subscription: {
+        images: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('images')
+        },
+        avatars: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('avatars')
+        },
+        icons: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('icons')
+        },
         users: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('users')
@@ -1034,9 +1159,9 @@ module.exports = {
                 (!user) ? null : pubsub.asyncIterator('comments'),
             resolve: (payload, { id }) => payload.comments.filter(comment => comment.article === id)
         },
-        roles: {
+        chats: {
             subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('roles')
+                (!user) ? null : pubsub.asyncIterator('chats')
         },
         messages: {
             subscribe: async (_, args, { pubsub, user }) =>
@@ -1052,6 +1177,14 @@ module.exports = {
             resolve: async (payload, args, { user }) => {
                 return payload.notifications.filter(notification => notification.user.equals(user._id))
             }
+        },
+        roles: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('roles')
+        },
+        languages: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('languages')
         },
 
         userOffers: {
