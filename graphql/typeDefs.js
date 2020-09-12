@@ -187,9 +187,6 @@ module.exports = gql`
         slogan: String!
         icon: Icon!
         color: String!
-        offers: [Offer]
-        countUsers: Int
-        countOffers: Int
         status: Status!
         updatedAt: String
         createdAt: String!

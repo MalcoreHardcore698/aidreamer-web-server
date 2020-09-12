@@ -113,7 +113,7 @@ async function start() {
     app.use(express.urlencoded({ extended: true }))
 
     server.applyMiddleware({ app, cors: {
-        origin: 'http://localhost:3000',
+        origin: 'http://aidreamer.com',
         credentials: true
     }})
     server.installSubscriptionHandlers(http)

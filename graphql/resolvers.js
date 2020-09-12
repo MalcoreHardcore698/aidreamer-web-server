@@ -101,19 +101,10 @@ module.exports = {
     },
     Hub: {
         id: parent => parent.id,
-        offers: async (parent) => {
-            const offers = await Offer.find({ hub: parent.id })
-            return offers
-        },
         icon: async (parent) => {
-            const icon = await Image.findById(parent.icon)
+            const icon = await Icon.findById(parent.icon)
             if (icon) return icon
             return { id: '', name: '', path: '' }
-        },
-        countUsers: () => 0,
-        countOffers: async (parent) => {
-            const offers = await Offer.find({ hub: parent.id })
-            return offers.length
         }
     },  
     Article: {
@@ -502,10 +493,12 @@ module.exports = {
 
             return true
         },
-        deleteAvatars: async (_, { id, user }, { pubsub }) => {
+        deleteAvatars: async (_, { id }, { pubsub, user }) => {
             if (!user) return false
             
-            await Avatar.findById(id).deleteOne()
+            for (i of id) {
+                await Avatar.findById(i).deleteOne()
+            }
 
             const avatars = await Avatar.find()
             pubsub.publish('avatars', { avatars })
@@ -549,7 +542,7 @@ module.exports = {
             if (!user) return false
             
             for (i of id) {
-                await Image.findById(id).deleteOne()
+                await Image.findById(i).deleteOne()
             }
 
             const images = await Image.find()
@@ -594,7 +587,7 @@ module.exports = {
             if (!user) return false
             
             for (i of id) {
-                await Icon.findById(id).deleteOne()
+                await Icon.findById(i).deleteOne()
             }
 
             const icons = await Icon.find()
@@ -946,6 +939,7 @@ module.exports = {
             hub.description = args.description || hub.description
             hub.slogan = args.slogan || hub.slogan
             hub.color = args.color || hub.color
+            hub.icon = args.icon || hub.icon
             hub.status = args.status || hub.status
 
             await hub.save()
@@ -1047,6 +1041,7 @@ module.exports = {
             } else {
                 const chat = await Chat.create({
                     title: name,
+                    type: C.USER_CHAT,
                     members: [
                         user.id,
                         interlocutor.id
