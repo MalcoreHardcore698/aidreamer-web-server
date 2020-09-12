@@ -112,8 +112,15 @@ async function start() {
     app.use('/uploads', express.static('uploads'))
     app.use(express.urlencoded({ extended: true }))
 
+    const whitelist = ['http://aidreamer.com', 'http://dash.aidreamer.com']
     server.applyMiddleware({ app, cors: {
-        origin: 'http://aidreamer.com',
+        origin: function (origin, callback) {
+            if (whitelist.indexOf(origin) !== -1) {
+                callback(null, true)
+            } else {
+                callback(new Error('Not allowed by CORS'))
+            }
+        },
         credentials: true
     }})
     server.installSubscriptionHandlers(http)
