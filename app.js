@@ -100,21 +100,29 @@ async function start() {
 
         }
     })
-    
-    app.use(session({
+
+    const sess = {
         secret: 'keyboard cat',
         resave: false,
         saveUninitialized: true,
-        cookie: { secure: true }
-    }))
+        cookie: {}
+    }
 
+    if (app.get('env') === 'production') {
+        app.set('trust proxy', 1)
+        // sess.cookie.secure = true
+    }
+    
+    app.use(session(sess))
     app.use(express.json())
+    
     app.use('/uploads', express.static('uploads'))
     app.use(express.urlencoded({ extended: true }))
 
-    const whitelist = ['http://aidreamer.com', 'http://dash.aidreamer.com']
+    const whitelist = ['http://aidreamer.com', 'http://dash.aidreamer.com', 'http://api.aidreamer.com']
     server.applyMiddleware({ app, cors: {
         origin: function (origin, callback) {
+            console.log(origin)
             if (whitelist.indexOf(origin) !== -1) {
                 callback(null, true)
             } else {
