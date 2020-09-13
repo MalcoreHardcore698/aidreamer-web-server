@@ -92,7 +92,7 @@ async function start() {
             } else {
                 const cookie = req.headers.cookie
                 const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
-                console.log(sessionID)
+                console.log(cookie, sessionID)
     
                 const user = await User.findOne({ sessionID })
     
@@ -106,15 +106,12 @@ async function start() {
         secret: 'keyboard cat',
         resave: false,
         saveUninitialized: true,
-        cookie: {
-            domain: 'aidreamer.com'
-        }
+        cookie: { domain: 'aidreamer.com' }
     }
 
-    if (app.get('env') === 'production') {
-        app.set('trust proxy', 1)
+   
+	app.set('trust proxy', 1)
         // sess.cookie.secure = true
-    }
     
     app.use(session(sess))
     app.use(express.json())
