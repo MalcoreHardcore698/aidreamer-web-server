@@ -39,7 +39,7 @@ function getCookie(cookie, cname) {
 
 // Server
 async function start() {
-    const port = process.env.PORT || 5000
+    const port = process.env.PORT || 8000
     const url = process.env.URL
     const app = express()
     const http = createServer(app)
