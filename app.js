@@ -107,7 +107,7 @@ async function start() {
         resave: false,
         saveUninitialized: true,
         cookie: {
-            domain: '.aidreamer.com'
+            domain: 'aidreamer.com'
         }
     }
 
