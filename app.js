@@ -92,6 +92,7 @@ async function start() {
             } else {
                 const cookie = req.headers.cookie
                 const sessionID = (cookie) ? getCookie(cookie, 'connect.sid') : null
+                console.log(sessionID)
     
                 const user = await User.findOne({ sessionID })
     
@@ -122,7 +123,6 @@ async function start() {
     const whitelist = ['http://aidreamer.com', 'http://dash.aidreamer.com', 'http://api.aidreamer.com']
     server.applyMiddleware({ app, cors: {
         origin: function (origin, callback) {
-            console.log(origin)
             if (whitelist.indexOf(origin) !== -1) {
                 callback(null, true)
             } else {
