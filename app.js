@@ -91,7 +91,7 @@ async function start() {
                 return { storeUpload, pubsub }
             } else {
                 const cookie = req.headers.cookie
-                const sessionID = (cookie) ? getCookie(cookie, 'connect.sid') : null
+                const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
                 console.log(sessionID)
     
                 const user = await User.findOne({ sessionID })
