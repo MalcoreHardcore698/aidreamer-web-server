@@ -106,7 +106,9 @@ async function start() {
         secret: 'keyboard cat',
         resave: false,
         saveUninitialized: true,
-        cookie: {}
+        cookie: {
+            domain: '.aidreamer.com'
+        }
     }
 
     if (app.get('env') === 'production') {
