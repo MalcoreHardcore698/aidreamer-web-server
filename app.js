@@ -92,7 +92,6 @@ async function start() {
             } else {
                 const cookie = req.headers.cookie
                 const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
-                console.log(cookie, sessionID)
     
                 const user = await User.findOne({ sessionID })
     
@@ -110,8 +109,8 @@ async function start() {
     }
 
    
-	app.set('trust proxy', 1)
-        // sess.cookie.secure = true
+    app.set('trust proxy', 1)
+    // sess.cookie.secure = true
     
     app.use(session(sess))
     app.use(express.json())
