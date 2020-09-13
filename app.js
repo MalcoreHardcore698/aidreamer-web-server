@@ -91,7 +91,7 @@ async function start() {
                 return { storeUpload, pubsub }
             } else {
                 const cookie = req.headers.cookie
-                const sessionID = (cookie) ? getCookie(cookie, 'secret') : null
+                const sessionID = (cookie) ? getCookie(cookie, 'connect.sid') : null
     
                 const user = await User.findOne({ sessionID })
     
@@ -115,7 +115,7 @@ async function start() {
     
     app.use(session(sess))
     app.use(express.json())
-    
+
     app.use('/uploads', express.static('uploads'))
     app.use(express.urlencoded({ extended: true }))
 
