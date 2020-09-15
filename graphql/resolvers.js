@@ -32,7 +32,11 @@ module.exports = {
         hub: async (parent) => await Hub.findById(parent.hub)
     },
     Language: {
-        flag: async (parent) => await Flag.findById(parent.flag)
+        flag: async (parent) => {
+            const flag = await Flag.findById(parent.flag)
+            if (flag) return flag
+            return { name: '', path: '' }
+        }
     },
     User: {
         id: parent => parent.id,
@@ -45,7 +49,7 @@ module.exports = {
         availableAvatars: async ({ availableAvatars }) => {
             const avatars = []
 
-            const availables = await Avatar.find({ complexity: 0 })
+            const availables = await Avatar.find({ rarity: C.AVAILABLE })
             if (availables) avatars.push(...availables)
 
             for (id of availableAvatars) {
@@ -191,13 +195,23 @@ module.exports = {
         },
         allLanguages: async (_, args, { user }) => {
             if (!user) return null
-
             return await Language.find()
         },
         allRoles: async (_, args, { user }) => {
             if (!user) return null
 
             return await Role.find()
+        },
+        allRarities: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.AVAILABLE,
+                C.COMMON,
+                C.RARE,
+                C.EPIC,
+                C.LEGENDARY
+            ])
         },
         allImages: async (_, args, { user }) => {
             if (!user) return null
@@ -475,10 +489,9 @@ module.exports = {
             
             const file = await storeUpload(args.file)
             await Avatar.create({
-                order: args.order,
                 name: file.filename,
                 path: file.path,
-                complexity: args.complexity,
+                rarity: args.rarity,
                 hub: args.hub
             })
 
@@ -493,10 +506,12 @@ module.exports = {
             const avatar = await Avatar.findById(args.id)
             const file = args.file && await storeUpload(args.file)
 
-            avatar.order = args.order || avatar.order
-            avatar.name = args.name || file.filename
-            avatar.path = (file && file.path) || file.path
-            avatar.complexity = args.complexity || avatar.complexity
+            if (file) {
+                avatar.name = file.filename
+                avatar.path = file.path
+            }
+
+            avatar.rarity = args.rarity || avatar.rarity
             avatar.hub = args.hub || avatar.hub
             await avatar.save()
 

@@ -52,6 +52,14 @@ module.exports = gql`
         PROFILE
     }
 
+    enum Rarity {
+        AVAILABLE
+        COMMON
+        RARE
+        EPIC
+        LEGENDARY
+    }
+
     enum MessageType {
         READED
         UNREADED
@@ -68,10 +76,9 @@ module.exports = gql`
 
     type Avatar {
         id: ID!
-        order: Int!
         name: String!
         path: String!
-        complexity: Int!
+        rarity: Rarity!
         hub: Hub!
         updatedAt: String,
         createdAt: String!
@@ -239,6 +246,7 @@ module.exports = gql`
         allFlags: [Flag]
         allRoles: [Role]
         allStatus: [Status]
+        allRarities: [Rarity]
         allChats: [Chat]
         allChatTypes: [ChatType]
         allChatMessages(id: ID!): [Message]
@@ -324,16 +332,14 @@ module.exports = gql`
 
         # Avatar
         addAvatar(
-            order: Int!
             file: Upload!
-            complexity: Int!
+            rarity: Rarity!
             hub: ID!
         ): Boolean!
         editAvatar(
             id: ID!
-            order: Int
             file: Upload
-            complexity: Int
+            rarity: Rarity
             hub: ID
         ): Boolean!
         deleteAvatars(
