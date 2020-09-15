@@ -86,9 +86,19 @@ module.exports = gql`
         createdAt: String!
     }
 
+    type Flag {
+        id: ID!
+        name: String!
+        path: String!
+        updatedAt: String,
+        createdAt: String!
+    }
+
     type Language {
         id: ID!
         code: String!
+        title: String!
+        flag: Flag!
         updatedAt: String,
         createdAt: String!
     }
@@ -226,6 +236,7 @@ module.exports = gql`
         allImages: [Image]
         allAvatars: [Avatar]
         allIcons: [Icon]
+        allFlags: [Flag]
         allRoles: [Role]
         allStatus: [Status]
         allChats: [Chat]
@@ -342,14 +353,30 @@ module.exports = gql`
         deleteIcons(
             id: [ID]!
         ): Boolean!
+        
+        # Flag
+        addFlag(
+            file: Upload!
+        ): Boolean!
+        editFlag(
+            id: ID!
+            file: Upload
+        ): Boolean!
+        deleteFlags(
+            id: [ID]!
+        ): Boolean!
 
         # Language
         addLanguage(
             code: String!
+            title: String!
+            flag: ID!
         ): Boolean!
         editLanguage(
             id: ID!
             code: String
+            title: String
+            flag: ID
         ): Boolean!
         deleteLanguages(
             id: [ID]!
@@ -401,7 +428,7 @@ module.exports = gql`
             settings: [Setting]
         ): Boolean!
         deleteUsers(
-            id: [ID]
+            names: [String]
         ): Boolean!
 
         # Article
@@ -526,6 +553,7 @@ module.exports = gql`
         images: [Image]
         avatars: [Avatar]
         icons: [Icon]
+        flags: [Flag]
         roles: [Role]
         languages: [Language]
 

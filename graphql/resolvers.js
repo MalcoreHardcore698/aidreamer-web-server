@@ -14,6 +14,7 @@ const Hub = require('./../models/Hub')
 const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
 const Icon = require('./../models/Icon')
+const Flag = require('./../models/Flag')
 
 const bcrypt = require('bcryptjs')
 const { UserInputError } = require('apollo-server-express')
@@ -30,6 +31,9 @@ module.exports = {
     Icon: {
         hub: async (parent) => await Hub.findById(parent.hub)
     },
+    Language: {
+        flag: async (parent) => await Flag.findById(parent.flag)
+    },
     User: {
         id: parent => parent.id,
         name: parent => parent.name,
@@ -38,12 +42,15 @@ module.exports = {
             if (avatar) return avatar
             return { id: '', name: '', path: '' }
         },
-        availableAvatars: async (parent) => {
+        availableAvatars: async ({ availableAvatars }) => {
             const avatars = []
 
-            for (id of parent.avatars) {
+            const availables = await Avatar.find({ complexity: 0 })
+            if (availables) avatars.push(...availables)
+
+            for (id of availableAvatars) {
                 const avatar = await Avatar.findById(id)
-                avatars.push(avatar)
+                if (avatar) avatars.push(avatar)
             }
 
             return avatars
@@ -206,6 +213,11 @@ module.exports = {
             if (!user) return null
 
             return await Icon.find()
+        },
+        allFlags: async (_, args, { user }) => {
+            if (!user) return null
+
+            return await Flag.find()
         },
         allStatus: (_, args, { user }) => {
             if (!user) return null
@@ -445,7 +457,7 @@ module.exports = {
                 email,
                 name,
                 password,
-                role: role || userRole.id,
+                role: userRole.id,
                 phone,
                 avatar
             })
@@ -596,6 +608,49 @@ module.exports = {
             return true
         },
 
+        // Flag
+        addFlag: async (_, args, { storeUpload, pubsub, user }) => {
+            if (!user) return false
+            
+            const file = await storeUpload(args.file)
+            await Flag.create({
+                name: file.filename,
+                path: file.path
+            })
+
+            const flags = await Flag.find()
+            pubsub.publish('flags', { flags })
+
+            return true
+        },
+        editFlag: async (_, args, { storeUpload, pubsub, user }) => {
+            if (!user) return false
+            
+            const flag = await Flag.findById(args.id)
+            const file = args.file && await storeUpload(args.file)
+
+            flag.name = args.name || flag.filename
+            flag.path = (file && file.path) || flag.path
+            await flag.save()
+
+            const flags = await Flag.find()
+            pubsub.publish('flags', { flags })
+            
+            return true
+        },
+        deleteFlags: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Flag.findById(i).deleteOne()
+            }
+
+            const flags = await Flag.find()
+            pubsub.publish('flags', { flags })
+
+            return true
+        },
+
         // Language
         addLanguage: async (_, args, { pubsub, user }) => {
             if (!user) return false
@@ -612,6 +667,8 @@ module.exports = {
 
             const language = await Language.findById(args.id)
             language.code = args.code || language.code
+            language.title = args.title || language.title
+            language.flag = args.flag || language.flag
             await language.save()
 
             const languages = await Language.find()
@@ -713,11 +770,11 @@ module.exports = {
 
             return true
         },
-        deleteUsers: async (_, { id }, { pubsub, user }) => {
+        deleteUsers: async (_, { names }, { pubsub, user }) => {
             if (!user) return false
             
-            for (i of id) {
-                await User.findById(i).deleteOne()
+            for (name of names) {
+                await User.find({ name }).deleteOne()
             }
 
             const users = await User.find()
@@ -1129,6 +1186,10 @@ module.exports = {
         icons: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('icons')
+        },
+        flags: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('flags')
         },
         users: {
             subscribe: async (_, args, { pubsub, user }) =>
