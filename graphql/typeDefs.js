@@ -62,6 +62,9 @@ module.exports = gql`
         ARTICLE
         HUB
         OFFER
+        CHAT
+        TOUR
+        PROFILE
     }
 
     enum AwardType {
@@ -162,6 +165,7 @@ module.exports = gql`
     }
 
     type ConditionBlock {
+        id: ID!
         action: Action!
         goals: [Goal]!
         multiply: Int
