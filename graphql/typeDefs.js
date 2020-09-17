@@ -57,6 +57,13 @@ module.exports = gql`
         UNREADED
     }
 
+    enum Area {
+        USER
+        ARTICLE
+        HUB
+        OFFER
+    }
+
     enum AwardType {
         GEM
         EXP
@@ -308,6 +315,7 @@ module.exports = gql`
         allActions: [Action]
         allGoals: [Goal]
         allUnions: [Union]
+        allAreas: [Area]
 
         getUser(id: ID): User
         getAvatar(id: ID!): Avatar

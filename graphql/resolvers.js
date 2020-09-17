@@ -375,6 +375,19 @@ module.exports = {
                 C.NOTIFIED_EMAIL
             ])
         },
+        allAreas: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.USER,
+                C.ARTICLE,
+                C.HUB,
+                C.OFFER,
+                C.CHAT,
+                C.TOUR,
+                C.PROFILE
+            ])
+        },
 
         getUser: async (_,  { id }, { user, req }) => {
             if (id) {

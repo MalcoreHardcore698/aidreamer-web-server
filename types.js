@@ -51,6 +51,8 @@ module.exports = {
 
     ICON: 'ICON',
     POSTER: 'POSTER',
+    USER: 'USER',
+    ARTICLE: 'ARTICLE',
     HUB: 'HUB',
     OFFER: 'OFFER',
     CHAT: 'CHAT',
