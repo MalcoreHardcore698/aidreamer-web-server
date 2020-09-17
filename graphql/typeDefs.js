@@ -44,14 +44,6 @@ module.exports = gql`
         GROUP_CHAT
     }
 
-    enum Area {
-        HUB
-        OFFER
-        CHAT
-        TOURNAMENT
-        PROFILE
-    }
-
     enum Rarity {
         AVAILABLE
         COMMON
@@ -63,6 +55,30 @@ module.exports = gql`
     enum MessageType {
         READED
         UNREADED
+    }
+
+    enum AwardType {
+        GEM
+        EXP
+    }
+
+    enum Action {
+        ADD_ARTICLE
+        ADD_OFFER
+        SEND_MESSAGE
+        JOIN_HUB
+    }
+
+    enum Goal {
+        ONCE
+        QUANTITY
+        SPECIFIC
+    }
+
+    enum Union {
+        AND
+        OR
+        THEN
     }
 
     ## TYPES ##
@@ -97,7 +113,7 @@ module.exports = gql`
         id: ID!
         name: String!
         path: String!
-        updatedAt: String,
+        updatedAt: String
         createdAt: String!
     }
 
@@ -106,17 +122,45 @@ module.exports = gql`
         code: String!
         title: String!
         flag: Flag!
-        updatedAt: String,
+        updatedAt: String
         createdAt: String!
     }
 
-    type Achievement {
+    type Act {
         id: ID!
         title: String!
         description: String!
-        area: Area!
-        updatedAt: String,
+        tasks: [ActTask]!
+        awards: [Award]!
+        updatedAt: String
         createdAt: String!
+    }
+
+    type Award {
+        id: ID!
+        award: AwardType!
+        quantity: Int!
+        updatedAt: String
+        createdAt: String!
+    }
+
+    type ActTask {
+        id: ID!
+        title: String!
+        icon: Icon!
+        condition: [ConditionBlock]!
+        awards: [Award]!
+        updatedAt: String
+        createdAt: String!
+    }
+
+    type ConditionBlock {
+        action: Action!
+        goals: [Goal]!
+        multiply: Int
+        specific: ID
+        union: Union
+        link: ConditionBlock
     }
 
     type User {
@@ -135,9 +179,9 @@ module.exports = gql`
         offers: [Offer]
         chats: [UserChat]
         preferences: [Hub]
-        achievements: [Achievement]
+        acts: [Act]
         settings: [Setting]
-        updatedAt: String,
+        updatedAt: String
         createdAt: String!
     }
 
@@ -145,7 +189,7 @@ module.exports = gql`
         id: ID!
         name: String!
         permissions: [Permission]
-        updatedAt: String,
+        updatedAt: String
         createdAt: String!
     }
 
@@ -153,7 +197,7 @@ module.exports = gql`
         id: ID!
         user: User!
         text: String!
-        updatedAt: String,
+        updatedAt: String
         createdAt: String!
     }
 
@@ -257,8 +301,14 @@ module.exports = gql`
         allPermissions: [Permission]
         allSettings: [Setting]
         allLanguages: [Language]
-        allAchievementAreas: [Area]
-        
+        allActs: [Act]
+        allActTasks: [ActTask]
+        allConditionBlocks: [ConditionBlock]
+        allAwardTypes: [AwardType]
+        allActions: [Action]
+        allGoals: [Goal]
+        allUnions: [Union]
+
         getUser(id: ID): User
         getAvatar(id: ID!): Avatar
         getImage(id: ID!): Image
@@ -289,6 +339,11 @@ module.exports = gql`
         role: ID
         phone: String
         avatar: ID
+    }
+
+    input InputAward {
+        award: AwardType!
+        quantity: Int!
     }
 
     input InputComment {
@@ -357,6 +412,64 @@ module.exports = gql`
             hub: ID
         ): Boolean!
         deleteIcons(
+            id: [ID]!
+        ): Boolean!
+
+        # Act
+        addAct(
+            title: String!
+            description: String!
+            tasks: [ID]!
+            awards: [InputAward]!
+        ): Boolean!
+        editAct(
+            id: ID!
+            title: String
+            description: String
+            tasks: [ID]
+            awards: [InputAward]
+        ): Boolean!
+        deleteActs(
+            id: [ID]!
+        ): Boolean!
+
+        # ActTask
+        addActTask(
+            title: String!
+            icon: ID!
+            condition: [ID]!
+            awards: [InputAward]!
+        ): Boolean!
+        editActTask(
+            id: ID!
+            title: String
+            icon: ID
+            condition: [ID]
+            awards: [InputAward]
+        ): Boolean!
+        deleteActTasks(
+            id: [ID]!
+        ): Boolean!
+
+        # ConditionBlock
+        addConditionBlock(
+            action: Action!
+            goals: [Goal]!
+            multiply: Int
+            specific: ID
+            union: Union
+            link: ID
+        ): Boolean!
+        editConditionBlock(
+            id: ID!
+            action: Action
+            goals: [Goal]
+            multiply: Int
+            specific: ID
+            union: Union
+            link: ID
+        ): Boolean!
+        deleteConditionBlocks(
             id: [ID]!
         ): Boolean!
         
@@ -562,6 +675,9 @@ module.exports = gql`
         flags: [Flag]
         roles: [Role]
         languages: [Language]
+        acts: [Act]
+        actTasks: [ActTask]
+        conditionBlocks: [ConditionBlock]
 
         userNotifications(name: String!): [Notification]
         userOffers(name: String!): [Offer]

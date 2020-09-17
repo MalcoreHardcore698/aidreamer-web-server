@@ -15,6 +15,9 @@ const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
 const Icon = require('./../models/Icon')
 const Flag = require('./../models/Flag')
+const Act = require('./../models/Act')
+const ActTask = require('./../models/ActTask')
+const ConditionBlock = require('./../models/ConditionBlock')
 
 const bcrypt = require('bcryptjs')
 const { UserInputError } = require('apollo-server-express')
@@ -30,6 +33,34 @@ module.exports = {
     },
     Icon: {
         hub: async (parent) => await Hub.findById(parent.hub)
+    },
+    Act: {
+        tasks: async (parent) => {
+            const tasks = []
+
+            for (id of parent.tasks) {
+                const task = await ActTask.findById(id)
+                if (task) tasks.push(task)
+            }
+
+            return tasks
+        }
+    },
+    ActTask: {
+        icon: async (parent) => await Icon.findById(parent.icon),
+        condition: async (parent) => {
+            const condition = []
+
+            for (id of parent.condition) {
+                const conditionBlock = await ConditionBlock.findById(id)
+                if (conditionBlock) condition.push(conditionBlock)
+            }
+
+            return condition
+        } 
+    },
+    ConditionBlock: {
+        link: async (parent) => await ConditionBlock.findById(parent.link),
     },
     Language: {
         flag: async (parent) => {
@@ -193,6 +224,54 @@ module.exports = {
             const messages = await Message.find({ chat: id })
             return messages
         },
+        allActs: async (_, args, { user }) => {
+            if (!user) return null
+            return await Act.find()
+        },
+        allActTasks: async (_, args, { user }) => {
+            if (!user) return null
+            return await ActTask.find()
+        },
+        allConditionBlocks: async (_, args, { user }) => {
+            if (!user) return null
+            return await ConditionBlock.find()
+        },
+        allAwardTypes: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.GEM,
+                C.EXP
+            ])
+        },
+        allActions: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.ADD_ARTICLE,
+                C.ADD_OFFER,
+                C.SEND_MESSAGE,
+                C.JOIN_HUB
+            ])
+        },
+        allGoals: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.ONCE,
+                C.QUANTITY,
+                C.SPECIFIC
+            ])
+        },
+        allUnions: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.AND,
+                C.OR,
+                C.THEN
+            ])
+        },
         allLanguages: async (_, args, { user }) => {
             if (!user) return null
             return await Language.find()
@@ -294,17 +373,6 @@ module.exports = {
                 C.VERIFIED_EMAIL,
                 C.VERIFIED_PHONE,
                 C.NOTIFIED_EMAIL
-            ])
-        },
-        allAchievementAreas: (_, args, { user }) => {
-            if (!user) return null
-            
-            return ([
-                C.HUB,
-                C.OFFER,
-                C.CHAT,
-                C.TOURNAMENT,
-                C.PROFILE
             ])
         },
 
@@ -739,6 +807,129 @@ module.exports = {
 
             const roles = await Role.find()
             pubsub.publish('roles', { roles })
+
+            return true
+        },
+
+        // Act
+        addAct: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            await Act.create(args)
+
+            const acts = await Act.find()
+            pubsub.publish('acts', { acts })
+
+            return true
+        },
+        editAct: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const act = await Act.findById(args.id)
+
+            act.title = args.title || act.title
+            act.description = args.description || act.description
+            act.tasks = args.tasks || act.tasks
+            act.awards = args.awards || act.awards
+
+            await act.save()
+
+            const acts = await Act.find()
+            pubsub.publish('acts', { acts })
+
+            return true
+        },
+        deleteActs: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await Act.findById(i).deleteOne()
+            }
+
+            const acts = await Act.find()
+            pubsub.publish('acts', { acts })
+
+            return true
+        },
+
+        // ActTask
+        addActTask: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            await ActTask.create(args)
+
+            const actTasks = await ActTask.find()
+            pubsub.publish('actTasks', { actTasks })
+
+            return true
+        },
+        editActTask: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const actTask = await ActTask.findById(args.id)
+
+            actTask.title = args.title || actTask.title
+            actTask.icon = args.icon || actTask.icon
+            actTask.condition = args.condition || actTask.condition
+            actTask.awards = args.awards || actTask.awards
+
+            await actTask.save()
+
+            const actTasks = await ActTask.find()
+            pubsub.publish('act-tasks', { actTasks })
+
+            return true
+        },
+        deleteActTasks: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await ActTask.findById(i).deleteOne()
+            }
+
+            const actTasks = await ActTask.find()
+            pubsub.publish('act-tasks', { actTasks })
+
+            return true
+        },
+        
+        // ActTask
+        addConditionBlock: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            await ConditionBlock.create(args)
+
+            const conditionBlocks = await ConditionBlock.find()
+            pubsub.publish('condition-blocks', { conditionBlocks })
+
+            return true
+        },
+        editConditionBlock: async (_, args, { pubsub, user }) => {
+            if (!user) return false
+
+            const conditionBlock = await ConditionBlock.findById(args.id)
+
+            conditionBlock.title = args.title || conditionBlock.title
+            conditionBlock.icon = args.icon || conditionBlock.icon
+            conditionBlock.condition = args.condition || conditionBlock.condition
+            conditionBlock.awards = args.awards || conditionBlock.awards
+
+            await conditionBlock.save()
+
+            const conditionBlocks = await ConditionBlock.find()
+            pubsub.publish('condition-blocks', { conditionBlocks })
+
+            return true
+        },
+        deleteConditionBlocks: async (_, { id }, { pubsub, user }) => {
+            if (!user) return false
+            
+            for (i of id) {
+                await ConditionBlock.findById(i).deleteOne()
+            }
+
+            const conditionBlocks = await ConditionBlock.find()
+            pubsub.publish('condition-blocks', { conditionBlocks })
 
             return true
         },
@@ -1246,6 +1437,18 @@ module.exports = {
         languages: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('languages')
+        },
+        acts: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('acts')
+        },
+        actTasks: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('act-tasks')
+        },
+        conditionBlocks: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('condition-blocks')
         },
         
         userNotifications: {
