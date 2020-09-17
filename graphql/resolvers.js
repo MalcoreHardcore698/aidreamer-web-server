@@ -1182,7 +1182,7 @@ module.exports = {
                     })
 
                     const notifications = await Notification.find({ user: member })
-                    pubsub.publish('notifications', { notifications })
+                    pubsub.publish('user-notifications', { notifications })
                 }
             }
 
@@ -1228,7 +1228,7 @@ module.exports = {
         comments: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('comments'),
-            resolve: (payload, { id }) => payload.comments.filter(comment => comment.article === id)
+            resolve: (payload, { id }) => payload.comments.filter(comment => comment.article.equals(id))
         },
         chats: {
             subscribe: async (_, args, { pubsub, user }) =>
@@ -1236,18 +1236,8 @@ module.exports = {
         },
         messages: {
             subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('messages'),
-            resolve: async (payload, { id }) => {
-                // console.log(payload.messages)
-                return payload.messages.filter(message => message.chat.equals(id))
-            }
-        },
-        notifications: {
-            subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('notifications'),
-            resolve: async (payload, args, { user }) => {
-                return payload.notifications.filter(notification => notification.user.equals(user._id))
-            }
+                pubsub.asyncIterator('messages'),
+            resolve: async (payload, { id }) => payload.messages.filter(message => message.chat.equals(id))
         },
         roles: {
             subscribe: async (_, args, { pubsub, user }) =>
@@ -1257,13 +1247,21 @@ module.exports = {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('languages')
         },
-
+        
+        userNotifications: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('user-notifications'),
+            resolve: async (payload, { name }) => {
+                const user = await User.findOne({ name })
+                return payload.notifications.filter(notification => notification.user.equals(user._id))
+            }
+        },
         userOffers: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('user-offers'),
             resolve: async (payload, { name }) => {
                 const user = await User.findOne({ name })
-                return payload.offers.filter(offer => offer.user.equals(user.id))
+                return payload.offers.filter(offer => offer.user.equals(user._id))
             }
         },
         userArticles: {
@@ -1271,7 +1269,7 @@ module.exports = {
                 (!user) ? null : pubsub.asyncIterator('user-articles'),
             resolve: async (payload, { name }) => {
                 const user = await User.findOne({ name })
-                return payload.articles.filter(article => article.author.equals(user.id))
+                return payload.articles.filter(article => article.author.equals(user._id))
             }
         },
         userChats: {
@@ -1279,7 +1277,7 @@ module.exports = {
                 (!user) ? null : pubsub.asyncIterator('user-chats'),
             resolve: async (payload, { name }) => {
                 const user = await User.findOne({ name })
-                return payload.chats.filter(chat => chat.user.equals(user.id))
+                return payload.chats.filter(chat => chat.user.equals(user._id))
             }
         }
     }

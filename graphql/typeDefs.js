@@ -168,7 +168,7 @@ module.exports = gql`
 
     type Chat {
         id: ID!
-        type: ChatType!
+        type: ChatType
         title: String!
         members: [User]!
         messages: [Message]!
@@ -539,6 +539,7 @@ module.exports = gql`
         # UserChat
         openUserChat(
             name: String!
+            type: ChatType
         ): UserChat
         addUserChatMessage(
             id: ID!
@@ -550,10 +551,9 @@ module.exports = gql`
     type Subscription {
         users: [User]
         chats: [Chat]
-        messages: [Message]
-        notifications: [Notification]
         hubs: [Hub]
         offers: [Offer]
+        messages(id: ID!): [Message]
         articles(status: Status): [Article]
         comments(id: ID!): [Comment]
         images: [Image]
@@ -563,6 +563,7 @@ module.exports = gql`
         roles: [Role]
         languages: [Language]
 
+        userNotifications(name: String!): [Notification]
         userOffers(name: String!): [Offer]
         userArticles(name: String!): [Article]
         userChats(name: String!): [UserChat]
