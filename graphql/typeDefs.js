@@ -73,10 +73,12 @@ module.exports = gql`
     }
 
     enum Action {
-        ADD_ARTICLE
-        ADD_OFFER
-        SEND_MESSAGE
-        JOIN_HUB
+        ADD
+        EDIT
+        DELETE
+        SEND
+        JOIN
+        LEAVE
     }
 
     enum Goal {
@@ -167,6 +169,7 @@ module.exports = gql`
     type ConditionBlock {
         id: ID!
         action: Action!
+        target: Area!
         goals: [Goal]!
         multiply: Int
         specific: ID
@@ -466,6 +469,7 @@ module.exports = gql`
         # ConditionBlock
         addConditionBlock(
             action: Action!
+            target: Area!
             goals: [Goal]!
             multiply: Int
             specific: ID
@@ -475,6 +479,7 @@ module.exports = gql`
         editConditionBlock(
             id: ID!
             action: Action
+            target: Area
             goals: [Goal]
             multiply: Int
             specific: ID

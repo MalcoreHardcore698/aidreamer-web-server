@@ -38,6 +38,13 @@ module.exports = {
     READED: 'READED',
     UNREADED: 'UNREADED',
 
+    ADD: 'ADD',
+    EDIT: 'EDIT',
+    DELETE: 'DELETE',
+    SEND: 'SEND',
+    JOIN: 'JOIN',
+    LEAVE: 'LEAVE',
+
     ONCE: 'ONCE',
     QUANTITY: 'QUANTITY',
     SPECIFIC: 'SPECIFIC',

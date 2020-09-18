@@ -6,13 +6,28 @@ const ConditionBlockSchema = new Schema({
     action: {
         type: String,
         enum: [
-            C.ADD_ARTICLE,
-            C.ADD_OFFER,
-            C.SEND_MESSAGE,
-            C.JOIN_HUB
+            C.ADD,
+            C.EDIT,
+            C.DELETE,
+            C.SEND,
+            C.JOIN,
+            C.LEAVE
         ],
         required: true
     },
+    target: [{
+        type: String,
+        enum: [
+            C.USER,
+            C.ARTICLE,
+            C.HUB,
+            C.OFFER,
+            C.CHAT,
+            C.TOUR,
+            C.PROFILE
+        ],
+        required: true
+    }],
     goals: [{
         type: String,
         enum: [C.ONCE, C.QUANTITY, C.SPECIFIC],

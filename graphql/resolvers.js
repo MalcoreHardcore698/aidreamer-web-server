@@ -248,10 +248,12 @@ module.exports = {
             if (!user) return null
             
             return ([
-                C.ADD_ARTICLE,
-                C.ADD_OFFER,
-                C.SEND_MESSAGE,
-                C.JOIN_HUB
+                C.ADD,
+                C.EDIT,
+                C.DELETE,
+                C.SEND,
+                C.JOIN,
+                C.LEAVE
             ])
         },
         allGoals: (_, args, { user }) => {
@@ -922,10 +924,13 @@ module.exports = {
 
             const conditionBlock = await ConditionBlock.findById(args.id)
 
-            conditionBlock.title = args.title || conditionBlock.title
-            conditionBlock.icon = args.icon || conditionBlock.icon
-            conditionBlock.condition = args.condition || conditionBlock.condition
-            conditionBlock.awards = args.awards || conditionBlock.awards
+            conditionBlock.action = args.action || conditionBlock.action
+            conditionBlock.target = args.target || conditionBlock.target
+            conditionBlock.goals = args.goals || conditionBlock.goals
+            conditionBlock.multiply = args.multiply || conditionBlock.multiply
+            conditionBlock.specific = args.specific || conditionBlock.specific
+            conditionBlock.union = args.union || conditionBlock.union
+            conditionBlock.link = args.link || conditionBlock.link
 
             await conditionBlock.save()
 
