@@ -15,7 +15,12 @@ const ConditionBlockSchema = new Schema({
         ],
         required: true
     },
-    target: [{
+    goals: [{
+        type: String,
+        enum: [C.ONCE, C.QUANTITY, C.SPECIFIC],
+        required: true
+    }],
+    target: {
         type: String,
         enum: [
             C.USER,
@@ -27,12 +32,7 @@ const ConditionBlockSchema = new Schema({
             C.PROFILE
         ],
         required: true
-    }],
-    goals: [{
-        type: String,
-        enum: [C.ONCE, C.QUANTITY, C.SPECIFIC],
-        required: true
-    }],
+    },
     multiply: { type: Number },
     specific: { type: Schema.Types.ObjectId },
     union: {

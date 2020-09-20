@@ -1,4 +1,5 @@
 const C = require('../types')
+const ObjectId = require('mongoose').Types.ObjectId
 
 const User = require('./../models/User')
 const UserChat = require('./../models/UserChat')
@@ -15,6 +16,8 @@ const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
 const Icon = require('./../models/Icon')
 const Flag = require('./../models/Flag')
+const UserAct = require('./../models/UserAct')
+const UserActTask = require('./../models/UserActTask')
 const Act = require('./../models/Act')
 const ActTask = require('./../models/ActTask')
 const ConditionBlock = require('./../models/ConditionBlock')
@@ -44,7 +47,8 @@ module.exports = {
             }
 
             return tasks
-        }
+        },
+        successor: async (parent) => await Act.findById(parent.successor)
     },
     ActTask: {
         icon: async (parent) => await Icon.findById(parent.icon),
@@ -90,10 +94,6 @@ module.exports = {
 
             return avatars
         },
-        offers: async (parent) => {
-            const offers = await Offer.find({ user: parent.id })
-            return offers
-        },
         role: async (parent) => await Role.findById(parent.role),
         preferences: async (parent) => {
             const hubs = []
@@ -135,6 +135,24 @@ module.exports = {
 
             return messages
         }
+    },
+    UserAct: {
+        user: async (parent) => await User.findById(parent.user),
+        act: async (parent) => await Act.findById(parent.act),
+        tasks: async (parent) => {
+            const userTasks = []
+
+            for (let task of parent.tasks) {
+                const userActTask = await UserActTask.findById(task)
+                userTasks.push(userActTask)
+            }
+
+            return userTasks || []
+        }
+    },
+    UserActTask: {
+        user: async (parent) => await User.findById(parent.user),
+        task: async (parent) => await ActTask.findById(parent.task)
     },
     UserChat: {
         chat: async (parent) => await Chat.findById(parent.chat),
@@ -182,6 +200,36 @@ module.exports = {
             if (!user) return null
 
             return await User.find()
+        },
+        allUserActs: async (_, args, { user }) => {
+            if (!user) return null
+
+            const userActs = await UserAct.find({ user: user.id })
+
+            if (!userActs || (userActs && userActs.length === 0)) {
+                const sourceAct = await Act.findOne({ isSource: true })
+
+                const userActTasks = []
+
+                for (let actTask of sourceAct.tasks) {
+                    const userActTask = await UserActTask.create({
+                        user: user.id,
+                        task: actTask,
+                        status: C.WAITING
+                    })
+
+                    userActTasks.push(userActTask.id)
+                }
+
+                await UserAct.create({
+                    user: user.id,
+                    act: sourceAct.id,
+                    tasks: userActTasks,
+                    status: C.WAITING
+                })
+            }
+            
+            return userActs || []
         },
         allUserArticles: async (_, args, { user }) => {
             if (!user) return null
@@ -830,7 +878,40 @@ module.exports = {
         addAct: async (_, args, { pubsub, user }) => {
             if (!user) return false
 
-            await Act.create(args)
+            const actTasks = []
+
+            for (let task of args.tasks) {
+                const conditionBlocks = []
+                for (let condition of task.condition) {
+                    const conditionBlock = await ConditionBlock.create(condition)
+                    conditionBlocks.push(conditionBlock.id)
+                }
+
+                const actTask = await ActTask.create({
+                    ...task,
+                    condition: conditionBlocks
+                })
+
+                actTasks.push(actTask.id)
+            }
+
+            const options = {
+                title: args.title,
+                description: args.description,
+                tasks: actTasks,
+                status: args.status || C.PUBLISHED
+            }
+
+            if (args.awards)
+                options.awards = args.awards
+
+            if (args.successor)
+                options.successor = args.successor
+
+            if (args.isSource)
+                options.isSource = args.isSource
+
+            await Act.create(options)
 
             const acts = await Act.find()
             pubsub.publish('acts', { acts })
@@ -842,10 +923,51 @@ module.exports = {
 
             const act = await Act.findById(args.id)
 
+            const actTasks = []
+            for (let task of args.tasks) {
+                if (ObjectId.isValid(task.id)) {
+                    const candidate = await ActTask.findById(task.id)
+
+                    if (candidate) {
+                        candidate.title = task.title || candidate.title
+                        candidate.icon = task.icon || candidate.icon
+                        candidate.awards = task.awards || candidate.awards
+    
+                        await candidate.save()
+    
+                        actTasks.push(candidate.id)
+                    }
+                } else {
+                    const conditionBlocks = []
+                    for (let condition of task.condition) {
+                        const conditionBlock = await ConditionBlock.create(condition)
+                        conditionBlocks.push(conditionBlock.id)
+                    }
+
+                    const actTask = await ActTask.create({
+                        title: task.title,
+                        icon: task.icon,
+                        condition: conditionBlocks,
+                        awards: task.awards
+                    })
+                    actTasks.push(actTask.id)
+                }
+            }
+            
+            if (args.isSource) {
+                const acts = await Act.find()
+                for (let _act of acts) {
+                    _act.isSource = false
+                    await _act.save()
+                }
+            }
+
             act.title = args.title || act.title
             act.description = args.description || act.description
-            act.tasks = args.tasks || act.tasks
-            act.awards = args.awards || act.awards
+            act.tasks = actTasks
+            act.successor = args.successor || act.successor
+            act.isSource = args.isSource || act.isSource
+            act.status = args.status || act.status
 
             await act.save()
 
@@ -885,7 +1007,6 @@ module.exports = {
 
             actTask.title = args.title || actTask.title
             actTask.icon = args.icon || actTask.icon
-            actTask.condition = args.condition || actTask.condition
             actTask.awards = args.awards || actTask.awards
 
             await actTask.save()
@@ -1469,6 +1590,14 @@ module.exports = {
                 (!user) ? null : pubsub.asyncIterator('condition-blocks')
         },
         
+        userActs: {
+            subscribe: async (_, args, { pubsub, user }) =>
+                (!user) ? null : pubsub.asyncIterator('user-acts'),
+            resolve: async (payload, { name }) => {
+                const user = await User.findOne({ name })
+                return payload.acts.filter(userAct => userAct.user.equals(user._id))
+            }
+        },
         userNotifications: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('user-notifications'),

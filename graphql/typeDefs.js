@@ -67,6 +67,11 @@ module.exports = gql`
         PROFILE
     }
 
+    enum ActStatus {
+        WAITING
+        COMPLETED
+    }
+
     enum AwardType {
         GEM
         EXP
@@ -138,12 +143,34 @@ module.exports = gql`
         createdAt: String!
     }
 
+    type UserAct {
+        id: ID!
+        user: User!
+        act: Act!
+        tasks: [UserActTask]!
+        status: ActStatus!
+        updatedAt: String
+        createdAt: String!
+    }
+
+    type UserActTask {
+        id: ID!
+        user: User!
+        task: ActTask!
+        status: ActStatus!
+        updatedAt: String
+        createdAt: String!
+    }
+
     type Act {
         id: ID!
         title: String!
         description: String!
         tasks: [ActTask]!
-        awards: [Award]!
+        awards: [Award]
+        successor: Act
+        status: Status!
+        isSource: Boolean
         updatedAt: String
         createdAt: String!
     }
@@ -166,13 +193,18 @@ module.exports = gql`
         createdAt: String!
     }
 
+    type Specific {
+        id: ID!
+        area: Area!
+    }
+
     type ConditionBlock {
         id: ID!
         action: Action!
         target: Area!
         goals: [Goal]!
         multiply: Int
-        specific: ID
+        specific: Specific
         union: Union
         link: ConditionBlock
     }
@@ -188,12 +220,11 @@ module.exports = gql`
         balance: Int
         level: Int
         experience: Int
+        gems: Int
         avatar: Avatar
         availableAvatars: [Avatar]
-        offers: [Offer]
         chats: [UserChat]
         preferences: [Hub]
-        acts: [Act]
         settings: [Setting]
         updatedAt: String
         createdAt: String!
@@ -293,6 +324,7 @@ module.exports = gql`
 
     type Query {
         allUsers: [User]
+        allUserActs: [UserAct]
         allUserArticles: [Article]
         allUserOffers: [Offer]
         allUserChats: [UserChat]
@@ -359,6 +391,30 @@ module.exports = gql`
     input InputAward {
         award: AwardType!
         quantity: Int!
+    }
+
+    input InputSpecific {
+        id: ID!
+        area: Area!
+    }
+
+    input InputConditionBlock {
+        id: ID
+        action: Action!
+        goals: [Goal]!
+        target: Area!
+        multiply: Int
+        specific: InputSpecific
+        union: Union
+        link: ID
+    }
+
+    input InputActTask {
+        id: ID
+        title: String!
+        icon: ID!
+        condition: [InputConditionBlock]!
+        awards: [InputAward]!
     }
 
     input InputComment {
@@ -434,15 +490,21 @@ module.exports = gql`
         addAct(
             title: String!
             description: String!
-            tasks: [ID]!
-            awards: [InputAward]!
+            tasks: [InputActTask]!
+            awards: [InputAward]
+            successor: ID
+            isSource: Boolean
+            status: Status!
         ): Boolean!
         editAct(
             id: ID!
             title: String
             description: String
-            tasks: [ID]
+            tasks: [InputActTask]
             awards: [InputAward]
+            successor: ID
+            isSource: Boolean
+            status: Status
         ): Boolean!
         deleteActs(
             id: [ID]!
@@ -696,6 +758,7 @@ module.exports = gql`
         actTasks: [ActTask]
         conditionBlocks: [ConditionBlock]
 
+        userActs(name: String!): [UserAct]
         userNotifications(name: String!): [Notification]
         userOffers(name: String!): [Offer]
         userArticles(name: String!): [Article]
