@@ -61,6 +61,8 @@ module.exports = {
     FLAG: 'FLAG',
     USER: 'USER',
     POST: 'POST',
+    OFFER: 'OFFER',
+    ARTICLE: 'ARTICLE',
     HUB: 'HUB',
     AWARD: 'AWARD',
     TASK: 'TASK',

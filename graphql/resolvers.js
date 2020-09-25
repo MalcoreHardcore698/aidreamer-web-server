@@ -1,7 +1,4 @@
 const C = require('../types')
-const createTranslate = require('translate-text')
-const pluralize = require('numd')
-const translation = require('../utils/translation')
 const ObjectId = require('mongoose').Types.ObjectId
 
 const User = require('./../models/User')
@@ -25,11 +22,6 @@ const ConditionBlock = require('./../models/ConditionBlock')
 
 const bcrypt = require('bcryptjs')
 const { UserInputError } = require('apollo-server-express')
-
-const _t = createTranslate(translation, {pluralize})
-const capitalize = (str) => {
-    return str.charAt(0).toUpperCase() + str.slice(1)
-}
 
 const {
   validateRegisterInput,
@@ -204,24 +196,26 @@ module.exports = {
             if (!userActs || (userActs && userActs.length === 0)) {
                 const sourceAct = await Act.findOne({ isSource: true })
 
-                const userActTasks = []
+                if (sourceAct) {
+                    const userActTasks = []
 
-                for (let actTask of sourceAct.tasks) {
-                    const userActTask = await UserActTask.create({
+                    for (let actTask of sourceAct.tasks) {
+                        const userActTask = await UserActTask.create({
+                            user: user.id,
+                            task: actTask,
+                            status: C.WAITING
+                        })
+
+                        userActTasks.push(userActTask.id)
+                    }
+
+                    await UserAct.create({
                         user: user.id,
-                        task: actTask,
+                        act: sourceAct.id,
+                        tasks: userActTasks,
                         status: C.WAITING
                     })
-
-                    userActTasks.push(userActTask.id)
                 }
-
-                await UserAct.create({
-                    user: user.id,
-                    act: sourceAct.id,
-                    tasks: userActTasks,
-                    status: C.WAITING
-                })
             }
             
             return userActs || []
@@ -289,6 +283,14 @@ module.exports = {
                 C.FLAG,
                 C.TASK,
                 C.AWARD
+            ])
+        },
+        allPostTypes: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.OFFER,
+                C.ARTICLE
             ])
         },
         allActions: (_, args, { user }) => {
@@ -361,11 +363,15 @@ module.exports = {
             
             return ([ C.MODERATION, C.PUBLISHED ])
         },
-        allPosts: async (_, { status }, { user }) => {
+        allPosts: async (_, { status, type }, { user }) => {
             if (!user) return null
             
-            const posts = await Post.find()
-            if (status) return posts.filter(n => n.status === status)
+            let posts = []
+            
+            if (type) posts = await Post.find({ type })
+            else posts = await Post.find()
+
+            if (status) posts.filter(n => n.status === status)
             return posts
         },
         allPostComments: async (_, { id }, { user }) => {
@@ -1063,7 +1069,7 @@ module.exports = {
         },
 
         // Post
-        addPost: async (_, args, { pubsub, user }) => {
+        addPost: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
 
             let preview = null
@@ -1074,7 +1080,7 @@ module.exports = {
                     path: file.path
                 })
 
-                if (preview) preview = image.id
+                if (image) preview = image.id
             }
 
             const options ={
@@ -1092,7 +1098,7 @@ module.exports = {
 
             return true
         },
-        editPost: async (_, args, { pubsub, user }) => {
+        editPost: async (_, args, { storeUpload, pubsub, user }) => {
             if (!user) return false
             
             const post = await Post.findById(args.id)
@@ -1427,7 +1433,7 @@ module.exports = {
         posts: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('posts'),
-            resolve: (payload, { status }) => payload.posts.filter(post => post.status === status)
+            resolve: (payload, { status, type }) => payload.posts.filter(post => (post.status === status) && (post.type === type))
         },
         comments: {
             subscribe: async (_, args, { pubsub, user }) =>
@@ -1483,7 +1489,7 @@ module.exports = {
         userPosts: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('user-posts'),
-            resolve: async (payload, { name }) => {
+            resolve: async (payload, { name, type }) => {
                 const user = await User.findOne({ name })
                 return payload.posts.filter(post => post.author.equals(user._id))
             }

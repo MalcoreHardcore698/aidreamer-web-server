@@ -329,7 +329,7 @@ module.exports = gql`
         allRarities: [Rarity]
         allChats: [Chat]
         allChatMessages(id: ID!): [Message]
-        allPosts(status: Status): [Post]
+        allPosts(status: Status, type: PostType): [Post]
         allPostComments(id: ID!): [Comment]
         allHubs(status: Status): [Hub]
         allPermissions: [Permission]
@@ -346,6 +346,7 @@ module.exports = gql`
         allChatTypes: [ChatType]
         allAwardTypes: [AwardType]
         allIconTypes: [IconType]
+        allPostTypes: [PostType]
 
         getUser(id: ID): User
         getAvatar(id: ID!): Avatar
@@ -606,7 +607,7 @@ module.exports = gql`
 
         # Post
         addPost(
-            author: ID!
+            author: ID
             type: PostType!
             title: String!
             subtitle: String
@@ -617,8 +618,6 @@ module.exports = gql`
             views: Int
             comments: [InputComment]
             status: Status!
-            updatedAt: String
-            createdAt: String!
         ): Boolean!
         editPost(
             id: ID!
@@ -633,8 +632,6 @@ module.exports = gql`
             views: Int
             comments: [InputComment]
             status: Status
-            updatedAt: String
-            createdAt: String
         ): Boolean!
         deletePosts(
             posts: [InputPost]
@@ -710,7 +707,7 @@ module.exports = gql`
         users: [User]
         chats: [Chat]
         hubs: [Hub]
-        posts(status: Status): [Post]
+        posts(status: Status, type: PostType): [Post]
         messages(id: ID!): [Message]
         comments(id: ID!): [Comment]
         images: [Image]

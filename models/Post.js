@@ -10,11 +10,11 @@ const PostSchema = new Schema({
         required: true
     },
     title: { type: String, required: true },
-    subtitle: { type: String, required: true },
-    description: { type: String, required: true },
-    content: { type: String, required: true },
+    subtitle: { type: String},
+    description: { type: String },
+    content: { type: String },
     preview: { type: Schema.Types.ObjectId, ref: 'Image' },
-    hub: { type: Schema.Types.ObjectId, ref: 'Hub', required: true },
+    hub: { type: Schema.Types.ObjectId, ref: 'Hub' },
     comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
     views: { type: Number },
     status:  {
