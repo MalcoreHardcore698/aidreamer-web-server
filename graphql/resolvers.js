@@ -1,4 +1,7 @@
 const C = require('../types')
+const createTranslate = require('translate-text')
+const pluralize = require('numd')
+const translation = require('../utils/translation')
 const ObjectId = require('mongoose').Types.ObjectId
 
 const User = require('./../models/User')
@@ -8,14 +11,12 @@ const Message = require('./../models/Message')
 const Notification = require('./../models/Notification')
 const Language = require('./../models/Language')
 const Role = require('./../models/Role')
-const Offer = require('./../models/Offer')
-const Article = require('./../models/Article')
+const Post = require('../models/Post')
 const Comment = require('./../models/Comment')
 const Hub = require('./../models/Hub')
 const Avatar = require('./../models/Avatar')
 const Image = require('./../models/Image')
 const Icon = require('./../models/Icon')
-const Flag = require('./../models/Flag')
 const UserAct = require('./../models/UserAct')
 const UserActTask = require('./../models/UserActTask')
 const Act = require('./../models/Act')
@@ -24,6 +25,11 @@ const ConditionBlock = require('./../models/ConditionBlock')
 
 const bcrypt = require('bcryptjs')
 const { UserInputError } = require('apollo-server-express')
+
+const _t = createTranslate(translation, {pluralize})
+const capitalize = (str) => {
+    return str.charAt(0).toUpperCase() + str.slice(1)
+}
 
 const {
   validateRegisterInput,
@@ -68,7 +74,7 @@ module.exports = {
     },
     Language: {
         flag: async (parent) => {
-            const flag = await Flag.findById(parent.flag)
+            const flag = await Icon.findById(parent.flag)
             if (flag) return flag
             return { name: '', path: '' }
         }
@@ -167,9 +173,9 @@ module.exports = {
             return { id: '', name: '', path: '' }
         }
     },  
-    Article: {
+    Post: {
         author: async (parent) => await User.findById(parent.author),
-        image: async (parent) => {
+        preview: async (parent) => {
             if (!parent.image) return {
                 path: ''
             }
@@ -177,22 +183,11 @@ module.exports = {
             return await Image.findById(parent.image)
         },
         hub: async (parent) => await Hub.findById(parent.hub),
-        comments: async (parent) => await Comment.find({ article: parent.id })
+        comments: async (parent) => await Comment.find({ post: parent.id })
     },
     Comment: {
-        article: async (parent) => await Article.findById(parent.article),
+        post: async (parent) => await Post.findById(parent.post),
         user: async (parent) => await User.findById(parent.user)
-    },
-    Offer: {
-        id: parent => parent.id,
-        user: async (parent) => {
-            const user = await User.findById(parent.user)
-            return user
-        },
-        hub: async (parent) => {
-            const hub = await Hub.findById(parent.hub)
-            return hub
-        }
     },
     Query: {
         // All Queries
@@ -231,17 +226,11 @@ module.exports = {
             
             return userActs || []
         },
-        allUserArticles: async (_, args, { user }) => {
+        allUserPosts: async (_, args, { user }) => {
             if (!user) return null
             
-            const articles = await Article.find({ author: user.id })
-            return articles.filter(n => n.status === 'PUBLISHED')
-        },
-        allUserOffers: async (_, args, { user }) => {
-            if (!user) return null
-            
-            const offers = await Offer.find({ user: user.id })
-            return offers || []
+            const posts = await Post.find({ author: user.id })
+            return posts.filter(n => n.status === 'PUBLISHED')
         },
         allUserChats: async (_, args, { user }) => {
             if (!user) return null
@@ -290,6 +279,16 @@ module.exports = {
             return ([
                 C.GEM,
                 C.EXP
+            ])
+        },
+        allIconTypes: (_, args, { user }) => {
+            if (!user) return null
+            
+            return ([
+                C.HUB,
+                C.FLAG,
+                C.TASK,
+                C.AWARD
             ])
         },
         allActions: (_, args, { user }) => {
@@ -357,32 +356,22 @@ module.exports = {
 
             return await Icon.find()
         },
-        allFlags: async (_, args, { user }) => {
-            if (!user) return null
-
-            return await Flag.find()
-        },
         allStatus: (_, args, { user }) => {
             if (!user) return null
             
             return ([ C.MODERATION, C.PUBLISHED ])
         },
-        allOffers: async (_, args, { user }) => {
+        allPosts: async (_, { status }, { user }) => {
             if (!user) return null
             
-            return await Offer.find()
+            const posts = await Post.find()
+            if (status) return posts.filter(n => n.status === status)
+            return posts
         },
-        allArticles: async (_, { status }, { user }) => {
-            if (!user) return null
-            
-            const articles = await Article.find()
-            if (status) return articles.filter(n => n.status === status)
-            return articles
-        },
-        allArticleComments: async (_, { id }, { user }) => {
+        allPostComments: async (_, { id }, { user }) => {
             if (!user) return null
 
-            const comments = await Comment.find({ article: id })
+            const comments = await Comment.find({ post: id })
             return comments || []
         },
         allHubs: async (_, { status }, { user }) => {
@@ -399,16 +388,13 @@ module.exports = {
                 C.ACCESS_CLIENT,
                 C.ACCESS_DASHBOARD,
                 C.ADD_USER,
-                C.ADD_ARTICLE,
-                C.ADD_OFFER,
+                C.ADD_POST,
                 C.ADD_HUB,
                 C.EDIT_USER,
-                C.EDIT_ARTICLE,
-                C.EDIT_OFFER,
+                C.EDIT_POST,
                 C.EDIT_HUB,
                 C.DELETE_USER,
-                C.DELETE_ARTICLE,
-                C.DELETE_OFFER,
+                C.DELETE_POST,
                 C.DELETE_HUB,
                 C.OPEN_CHAT,
                 C.CLOSE_CHAT,
@@ -430,9 +416,8 @@ module.exports = {
             
             return ([
                 C.USER,
-                C.ARTICLE,
+                C.POST,
                 C.HUB,
-                C.OFFER,
                 C.CHAT,
                 C.TOUR,
                 C.PROFILE
@@ -465,15 +450,10 @@ module.exports = {
             
             return await Icon.findById(id)
         },
-        getOffer: async (_,  { id }, { user }) => {
+        getPost: async (_,  { id }, { user }) => {
             if (!user) return null
             
-            return await Offer.findById(id)
-        },
-        getArticle: async (_,  { id }, { user }) => {
-            if (!user) return null
-            
-            return await Article.findById(id)
+            return await Post.findById(id)
         },
         getHub: async (_,  { id }, { user }) => {
             if (!user) return null
@@ -496,21 +476,16 @@ module.exports = {
             
             return await User.estimatedDocumentCount()
         },
-        countOffers: async (_, args, { user }) => {
+        countPosts: async (_, args, { user }) => {
             if (!user) return null
             
-            return await Offer.estimatedDocumentCount()
-        },
-        countArticles: async (_, args, { user }) => {
-            if (!user) return null
-            
-            return await Article.estimatedDocumentCount()
+            return await Post.estimatedDocumentCount()
         },
         countComments: async (_, { id }, { user }) => {
             if (!user) return null
 
             if (!id) return await Comment.find().estimatedDocumentCount()
-            return await Comment.find({ article: id }).estimatedDocumentCount()
+            return await Comment.find({ post: id }).estimatedDocumentCount()
         },
         countHubs: async (_, args, { user }) => {
             if (!user) return null
@@ -754,49 +729,6 @@ module.exports = {
             return true
         },
 
-        // Flag
-        addFlag: async (_, args, { storeUpload, pubsub, user }) => {
-            if (!user) return false
-            
-            const file = await storeUpload(args.file)
-            await Flag.create({
-                name: file.filename,
-                path: file.path
-            })
-
-            const flags = await Flag.find()
-            pubsub.publish('flags', { flags })
-
-            return true
-        },
-        editFlag: async (_, args, { storeUpload, pubsub, user }) => {
-            if (!user) return false
-            
-            const flag = await Flag.findById(args.id)
-            const file = args.file && await storeUpload(args.file)
-
-            flag.name = args.name || flag.filename
-            flag.path = (file && file.path) || flag.path
-            await flag.save()
-
-            const flags = await Flag.find()
-            pubsub.publish('flags', { flags })
-            
-            return true
-        },
-        deleteFlags: async (_, { id }, { pubsub, user }) => {
-            if (!user) return false
-            
-            for (i of id) {
-                await Flag.findById(i).deleteOne()
-            }
-
-            const flags = await Flag.find()
-            pubsub.publish('flags', { flags })
-
-            return true
-        },
-
         // Language
         addLanguage: async (_, args, { pubsub, user }) => {
             if (!user) return false
@@ -947,6 +879,7 @@ module.exports = {
                     const actTask = await ActTask.create({
                         title: task.title,
                         icon: task.icon,
+                        translation: task.translation,
                         condition: conditionBlocks,
                         awards: task.awards
                     })
@@ -1007,6 +940,7 @@ module.exports = {
 
             actTask.title = args.title || actTask.title
             actTask.icon = args.icon || actTask.icon
+            actTask.translation= args.translation || actTask.translation
             actTask.awards = args.awards || actTask.awards
 
             await actTask.save()
@@ -1128,138 +1062,87 @@ module.exports = {
             return true
         },
 
-        // Offer
-        addOffer: async (_, args, { pubsub, user }) => {
+        // Post
+        addPost: async (_, args, { pubsub, user }) => {
             if (!user) return false
-            
-            await Offer.create({
+
+            let preview = null
+            if (args.preview) {
+                const file = await storeUpload(args.preview)
+                const image = (file) && await Image.create({
+                    name: file.filename,
+                    path: file.path
+                })
+
+                if (preview) preview = image.id
+            }
+
+            const options ={
                 ...args,
-                user: user.id
-            })
-
-            const offers = await Offer.find()
-            pubsub.publish('offers', { offers })
-            pubsub.publish('user-offers', { offers: offers.filter(a => a.user === args.user) })
-
-            return true
-        },
-        editOffer: async (_, args, { pubsub, user }) => {
-            if (!user) return false
-            
-            const offer = await Offer.findById(args.id)
-            offer.user = args.user || offer.user
-            offer.hub = args.hub || offer.hub
-            offer.title = args.title || offer.title
-            offer.message = args.message || offer.message
-            offer.status = args.status || offer.status
-            offer.dateEdited = args.dateEdited || offer.dateEdited
-            offer.datePublished = args.datePublished || offer.datePublished
-            offer.dateCreated = args.dateCreated || offer.dateCreated
-
-            await offer.save()
-
-            const offers = await Offer.find()
-            pubsub.publish('offers', { offers })
-            pubsub.publish('user-offers', { offers: offers.filter(a => a.user === args.user) })
-
-            return true
-        },
-        deleteOffers: async (_, { offers }, { pubsub, user }) => {
-            if (!user) return false
-            
-            for (offer of offers) {
-                await Offer.findById(offer.id).deleteOne()
+                author: user.id
             }
 
-            const newOffers = await Offer.find()
-            pubsub.publish('offers', { offers: newOffers })
+            if (preview) options.preview = preview
+            
+            await Post.create(options)
 
-            for (offer of newOffers) {
-                pubsub.publish('user-offers', { offers: newOffers.filter(o => o.user === offer.user) })
-            }
+            const posts = await Post.find()
+            pubsub.publish('posts', { posts })
+            pubsub.publish('user-posts', { posts: posts.filter(a => a.author === args.author) })
 
             return true
         },
-
-        // Article
-        addArticle: async (_, args, { storeUpload, pubsub, user }) => {
+        editPost: async (_, args, { pubsub, user }) => {
             if (!user) return false
-
-            const _user = await User.findOne({ name: args.author })
             
-            const article = await Article.create({
-                author: _user.id,
-                title: args.title,
-                description: args.description,
-                body: args.body,
-                hub: args.hub,
-                status: args.status
-            })
+            const post = await Post.findById(args.id)
 
-            if (args.image) {
-                const file = await storeUpload(args.image)
+            if (args.preview) {
+                const file = await storeUpload(args.preview)
                 const image = (file) && await Image.create({
                     name: file.filename,
                     path: file.path
                 })
 
-                if (image) {
-                    article.image = image.id
-                    await article.save()
-                }
+                if (image) post.preview = image.id
             }
 
-            const articles = await Article.find()
-            pubsub.publish('articles', { articles })
-            pubsub.publish('user-articles', { articles: articles.filter(a => a.author === args.author) })
+            post.author = args.author || post.author
+            post.type = args.type || post.type
+            post.title = args.title || post.title
+            post.subtitle = args.subtitle || post.subtitle
+            post.description = args.description || post.description
+            post.content = args.content || post.content
+            post.hub = args.hub || post.hub
+            post.views = args.views || post.views
+            post.comments = args.comments || post.comments
+            post.status = args.status || post.status
+
+            await post.save()
+
+            const posts = await Post.find()
+            pubsub.publish('posts', { posts })
+            pubsub.publish('user-posts', { posts: posts.filter(a => a.author === args.author) })
 
             return true
         },
-        editArticle: async (_, args, { storeUpload, pubsub, user }) => {
+        deletePosts: async (_, { posts }, { pubsub, user }) => {
             if (!user) return false
             
-            const article = await Article.findById(args.id)
-
-            if (args.image) {
-                const file = await storeUpload(args.image)
-                const image = (file) && await Image.create({
-                    name: file.filename,
-                    path: file.path
-                })
-
-                if (image) article.image = image.id
+            for (post of posts) {
+                await Post.findById(post.id).deleteOne()
             }
 
-            article.title = args.title || article.title
-            article.description = args.description || article.description
-            article.body = args.body || article.body
-            article.hub = args.hub || article.hub
-            article.status = args.status || article.status
+            const newPosts = await Post.find()
+            pubsub.publish('posts', { posts: newPosts })
 
-            await article.save()
-
-            const articles = await Article.find()
-            pubsub.publish('articles', { articles })
-            pubsub.publish('user-articles', { articles: articles.filter(a => a.author === args.author) })
-
-            return true
-        },
-        deleteArticles: async (_, { articles }, { pubsub, user }) => {
-            if (!user) return false
-            
-            for (article of articles) {
-                await Article.findById(article.id).deleteOne()
-            }
-
-            const newArticles = await Article.find()
-            pubsub.publish('articles', { articles: newArticles })
-
-            for (article of newArticles) {
-                pubsub.publish('user-articles', { articles: newArticles.filter(a => a.author === article.author) })
+            for (post of newPosts) {
+                pubsub.publish('user-posts', { posts: newPosts.filter(o => o.author === post.author) })
             }
 
             return true
         },
+
         addComment: async (_, args, { pubsub, user }) => {
             if (!user) return false
 
@@ -1269,7 +1152,7 @@ module.exports = {
                     user: user.id
                 })
     
-                const comments = await Comment.find({ article: args.article })
+                const comments = await Comment.find({ post: args.post })
                 pubsub.publish('comments', { comments })
             } catch (err) {
                 console.log(err)
@@ -1277,16 +1160,16 @@ module.exports = {
             }
 
             try {
-                const article = await Article.findById(args.article)
-                const authorArticle = await User.findById(article.author)
+                const post = await Post.findById(args.post)
+                const authorPost = await User.findById(post.author)
 
-                if (authorArticle.id !== user.id) {
+                if (authorPost.id !== user.id) {
                     await Notification.create({
-                        user: authorArticle.id,
-                        text: `${user.name} left a comment on the ${article.title}`
+                        user: authorPost.id,
+                        text: `${user.name} left a comment on the ${authorPost.title}`
                     })
         
-                    const notifications = await Notification.find({ user: authorArticle.id })
+                    const notifications = await Notification.find({ user: authorPost.id })
                     pubsub.publish('notifications', { notifications })
                 }
             } catch (err) {
@@ -1302,20 +1185,20 @@ module.exports = {
             const comment = await Comment.findById(args.id)
 
             comment.user = args.user || comment.user
-            comment.article = args.article || comment.article
+            comment.post = args.post || comment.post
             comment.text = args.text || comment.text
             await comment.save()
 
             return true
         },
-        deleteComments: async (_, { article, id }, { pubsub, user }) => {
+        deleteComments: async (_, { post, id }, { pubsub, user }) => {
             if (!user) return false
             
             for (i of id) {
                 await Comment.findById(i).deleteOne()
             }
 
-            const comments = await Comment.find({ article })
+            const comments = await Comment.find({ post })
             pubsub.publish('comments', { comments })
 
             return true
@@ -1532,10 +1415,6 @@ module.exports = {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('icons')
         },
-        flags: {
-            subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('flags')
-        },
         users: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('users')
@@ -1545,20 +1424,15 @@ module.exports = {
                 (!user) ? null : pubsub.asyncIterator('hubs'),
             resolve: (payload, { status }) => payload.hubs.filter(hub => hub.status === status)
         },
-        offers: {
+        posts: {
             subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('offers'),
-            resolve: (payload, { status }) => payload.offers.filter(offer => offer.status === status)
-        },
-        articles: {
-            subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('articles'),
-            resolve: (payload, { status }) => payload.articles.filter(article => article.status === status)
+                (!user) ? null : pubsub.asyncIterator('posts'),
+            resolve: (payload, { status }) => payload.posts.filter(post => post.status === status)
         },
         comments: {
             subscribe: async (_, args, { pubsub, user }) =>
                 (!user) ? null : pubsub.asyncIterator('comments'),
-            resolve: (payload, { id }) => payload.comments.filter(comment => comment.article.equals(id))
+            resolve: (payload, { id }) => payload.comments.filter(comment => comment.post.equals(id))
         },
         chats: {
             subscribe: async (_, args, { pubsub, user }) =>
@@ -1606,20 +1480,12 @@ module.exports = {
                 return payload.notifications.filter(notification => notification.user.equals(user._id))
             }
         },
-        userOffers: {
+        userPosts: {
             subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('user-offers'),
+                (!user) ? null : pubsub.asyncIterator('user-posts'),
             resolve: async (payload, { name }) => {
                 const user = await User.findOne({ name })
-                return payload.offers.filter(offer => offer.user.equals(user._id))
-            }
-        },
-        userArticles: {
-            subscribe: async (_, args, { pubsub, user }) =>
-                (!user) ? null : pubsub.asyncIterator('user-articles'),
-            resolve: async (payload, { name }) => {
-                const user = await User.findOne({ name })
-                return payload.articles.filter(article => article.author.equals(user._id))
+                return payload.posts.filter(post => post.author.equals(user._id))
             }
         },
         userChats: {

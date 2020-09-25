@@ -6,6 +6,7 @@ const { Schema } = mongoose
 const ActTaskSchema = new Schema({
     title: { type: String, required: true },
     icon: { type: Schema.Types.ObjectId, ref: 'Icon', required: true },
+    translation: { type: String, required: true },
     condition: [{ type: Schema.Types.ObjectId, ref: 'ConditionBlock', required: true }],
     awards: [{ type: AwardSchema, required: true }]
 }, {

@@ -1,5 +1,6 @@
 const C = require('../types')
 const mongoose = require('mongoose')
+const SpecificSchema = require('../schemas/SpecificSchema')
 const { Schema } = mongoose
 
 const ConditionBlockSchema = new Schema({
@@ -34,7 +35,7 @@ const ConditionBlockSchema = new Schema({
         required: true
     },
     multiply: { type: Number },
-    specific: { type: Schema.Types.ObjectId },
+    specific: { type: SpecificSchema },
     union: {
         type: String,
         enum: [C.AND, C.OR, C.THEN]

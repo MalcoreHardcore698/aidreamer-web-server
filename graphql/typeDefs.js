@@ -2,20 +2,44 @@ const { gql } = require('apollo-server-express')
 
 module.exports = gql`
     ## ENUMS ##
+    enum ChatType {
+        USER_CHAT
+        GROUP_CHAT
+    }
+    
+    enum MessageType {
+        READED
+        UNREADED
+    }
+
+    enum PostType {
+        ARTICLE
+        OFFER
+    }
+
+    enum AwardType {
+        GEM
+        EXP
+    }
+
+    enum IconType {
+        HUB
+        FLAG
+        TASK
+        AWARD
+    }
+
     enum Permission {
         ACCESS_CLIENT
         ACCESS_DASHBOARD
         ADD_USER
-        ADD_ARTICLE
-        ADD_OFFER
+        ADD_POST
         ADD_HUB
         EDIT_USER
-        EDIT_ARTICLE
-        EDIT_OFFER
+        EDIT_POST
         EDIT_HUB
         DELETE_USER
-        DELETE_ARTICLE
-        DELETE_OFFER
+        DELETE_POST
         DELETE_HUB
         OPEN_CHAT
         CLOSE_CHAT
@@ -39,11 +63,6 @@ module.exports = gql`
         CLOSE_CHAT
     }
 
-    enum ChatType {
-        USER_CHAT
-        GROUP_CHAT
-    }
-
     enum Rarity {
         AVAILABLE
         COMMON
@@ -52,16 +71,10 @@ module.exports = gql`
         LEGENDARY
     }
 
-    enum MessageType {
-        READED
-        UNREADED
-    }
-
     enum Area {
         USER
-        ARTICLE
+        POST
         HUB
-        OFFER
         CHAT
         TOUR
         PROFILE
@@ -70,11 +83,6 @@ module.exports = gql`
     enum ActStatus {
         WAITING
         COMPLETED
-    }
-
-    enum AwardType {
-        GEM
-        EXP
     }
 
     enum Action {
@@ -126,19 +134,11 @@ module.exports = gql`
         createdAt: String!
     }
 
-    type Flag {
-        id: ID!
-        name: String!
-        path: String!
-        updatedAt: String
-        createdAt: String!
-    }
-
     type Language {
         id: ID!
         code: String!
         title: String!
-        flag: Flag!
+        flag: Icon!
         updatedAt: String
         createdAt: String!
     }
@@ -188,6 +188,7 @@ module.exports = gql`
         title: String!
         icon: Icon!
         condition: [ConditionBlock]!
+        translation: String!
         awards: [Award]!
         updatedAt: String
         createdAt: String!
@@ -275,12 +276,18 @@ module.exports = gql`
         createdAt: String!
     }
 
-    type Offer {
+    type Post {
         id: ID!
-        user: User!
-        hub: Hub!
+        author: User!
+        type: PostType!
         title: String!
-        message: String!
+        subtitle: String
+        description: String
+        content: String
+        preview: Image
+        hub: Hub
+        views: Int
+        comments: [Comment]
         status: Status!
         updatedAt: String
         createdAt: String!
@@ -298,25 +305,10 @@ module.exports = gql`
         createdAt: String!
     }
 
-    type Article {
-        id: ID!
-        author: User!
-        title: String!
-        description: String!
-        body: String!
-        image: Image!
-        hub: Hub!
-        views: Int
-        comments: [Comment]
-        status: Status!
-        updatedAt: String
-        createdAt: String!
-    }
-
     type Comment {
         id: ID!
         user: User!
-        article: Article!
+        post: Post!
         text: String!
         updatedAt: String,
         createdAt: String!
@@ -324,25 +316,21 @@ module.exports = gql`
 
     type Query {
         allUsers: [User]
+        allUserPosts: [Post]
         allUserActs: [UserAct]
-        allUserArticles: [Article]
-        allUserOffers: [Offer]
         allUserChats: [UserChat]
         allUserNotifications: [Notification]
 
         allImages: [Image]
         allAvatars: [Avatar]
-        allIcons: [Icon]
-        allFlags: [Flag]
+        allIcons(type: IconType): [Icon]
         allRoles: [Role]
         allStatus: [Status]
         allRarities: [Rarity]
         allChats: [Chat]
-        allChatTypes: [ChatType]
         allChatMessages(id: ID!): [Message]
-        allOffers(status: Status): [Offer]
-        allArticles(status: Status): [Article]
-        allArticleComments(id: ID!): [Comment]
+        allPosts(status: Status): [Post]
+        allPostComments(id: ID!): [Comment]
         allHubs(status: Status): [Hub]
         allPermissions: [Permission]
         allSettings: [Setting]
@@ -350,25 +338,26 @@ module.exports = gql`
         allActs: [Act]
         allActTasks: [ActTask]
         allConditionBlocks: [ConditionBlock]
-        allAwardTypes: [AwardType]
         allActions: [Action]
         allGoals: [Goal]
         allUnions: [Union]
         allAreas: [Area]
 
+        allChatTypes: [ChatType]
+        allAwardTypes: [AwardType]
+        allIconTypes: [IconType]
+
         getUser(id: ID): User
         getAvatar(id: ID!): Avatar
         getImage(id: ID!): Image
         getIcon(id: ID!): Icon
-        getOffer(id: ID!): Offer
-        getArticle(id: ID!): Article
+        getPost(id: ID!): Post
         getHub(id: ID!): Hub
 
         countAvatars: Int!
         countImages: Int!
         countUsers: Int!
-        countOffers: Int!
-        countArticles: Int!
+        countPosts(type: PostType): Int!
         countComments(id: ID): Int!
         countHubs: Int!
     }
@@ -413,6 +402,7 @@ module.exports = gql`
         id: ID
         title: String!
         icon: ID!
+        translation: String!
         condition: [InputConditionBlock]!
         awards: [InputAward]!
     }
@@ -420,16 +410,11 @@ module.exports = gql`
     input InputComment {
         id: ID
         user: ID
-        article: ID
+        post: ID
         text: String
     }
 
-    input InputOffer {
-        id: ID!
-        user: String!
-    }
-
-    input InputArticle {
+    input InputPost {
         id: ID!
         author: String!
     }
@@ -514,6 +499,7 @@ module.exports = gql`
         addActTask(
             title: String!
             icon: ID!
+            translation: String!
             condition: [ID]!
             awards: [InputAward]!
         ): Boolean!
@@ -521,6 +507,7 @@ module.exports = gql`
             id: ID!
             title: String
             icon: ID
+            translation: String
             condition: [ID]
             awards: [InputAward]
         ): Boolean!
@@ -549,18 +536,6 @@ module.exports = gql`
             link: ID
         ): Boolean!
         deleteConditionBlocks(
-            id: [ID]!
-        ): Boolean!
-        
-        # Flag
-        addFlag(
-            file: Upload!
-        ): Boolean!
-        editFlag(
-            id: ID!
-            file: Upload
-        ): Boolean!
-        deleteFlags(
             id: [ID]!
         ): Boolean!
 
@@ -629,47 +604,56 @@ module.exports = gql`
             names: [String]
         ): Boolean!
 
-        # Article
-        addArticle(
-            author: String!
+        # Post
+        addPost(
+            author: ID!
+            type: PostType!
             title: String!
-            description: String!
-            body: String!
-            image: Upload
-            hub: ID!
+            subtitle: String
+            description: String
+            content: String
+            preview: Upload
+            hub: ID
             views: Int
             comments: [InputComment]
             status: Status!
+            updatedAt: String
+            createdAt: String!
         ): Boolean!
-        editArticle(
+        editPost(
             id: ID!
+            author: ID
+            type: PostType
             title: String
+            subtitle: String
             description: String
-            body: String
-            image: Upload
+            content: String
+            preview: Upload
+            hub: ID
             views: Int
             comments: [InputComment]
-            hub: ID
             status: Status
+            updatedAt: String
+            createdAt: String
         ): Boolean!
-        deleteArticles(
-            articles: [InputArticle]
+        deletePosts(
+            posts: [InputPost]
         ): Boolean!
 
         # Comment
         addComment(
-            article: ID!
+            post: ID!
             text: String!
         ): Boolean!
         editComment(
             id: ID!
             user: ID
-            article: ID
+            post: ID
             text: String
         ): Boolean!
         deleteComments(
             id: [ID]!
-            article: ID!
+            post: ID!
         ): Boolean!
         
         # Hub
@@ -692,24 +676,6 @@ module.exports = gql`
         ): Boolean!
         deleteHubs(
             id: [ID!]!
-        ): Boolean!
-        
-        # Offer
-        addOffer(
-            hub: ID!
-            title: String!
-            message: String!
-            status: Status!
-        ): Boolean!
-        editOffer(
-            id: ID!
-            hub: ID
-            title: String
-            message: String
-            status: Status
-        ): Boolean!
-        deleteOffers(
-            offers: [InputOffer]
         ): Boolean!
         
         # Chat
@@ -744,14 +710,12 @@ module.exports = gql`
         users: [User]
         chats: [Chat]
         hubs: [Hub]
-        offers: [Offer]
+        posts(status: Status): [Post]
         messages(id: ID!): [Message]
-        articles(status: Status): [Article]
         comments(id: ID!): [Comment]
         images: [Image]
         avatars: [Avatar]
         icons: [Icon]
-        flags: [Flag]
         roles: [Role]
         languages: [Language]
         acts: [Act]
@@ -760,8 +724,7 @@ module.exports = gql`
 
         userActs(name: String!): [UserAct]
         userNotifications(name: String!): [Notification]
-        userOffers(name: String!): [Offer]
-        userArticles(name: String!): [Article]
+        userPosts(name: String!, type: PostType): [Post]
         userChats(name: String!): [UserChat]
     }
 `
