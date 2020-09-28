@@ -127,7 +127,7 @@ module.exports = gql`
 
     type Icon {
         id: ID!
-        hub: Hub!
+        type: IconType!
         name: String!
         path: String!
         updatedAt: String,
@@ -358,6 +358,7 @@ module.exports = gql`
         countAvatars: Int!
         countImages: Int!
         countUsers: Int!
+        countUserPosts: Int!
         countPosts(type: PostType): Int!
         countComments(id: ID): Int!
         countHubs: Int!

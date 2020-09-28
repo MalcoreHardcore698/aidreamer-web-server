@@ -32,9 +32,6 @@ module.exports = {
     Avatar: {
         hub: async (parent) => await Hub.findById(parent.hub)
     },
-    Icon: {
-        hub: async (parent) => await Hub.findById(parent.hub)
-    },
     Act: {
         tasks: async (parent) => {
             const tasks = []
@@ -168,11 +165,11 @@ module.exports = {
     Post: {
         author: async (parent) => await User.findById(parent.author),
         preview: async (parent) => {
-            if (!parent.image) return {
+            if (!parent.preview) return {
                 path: ''
             }
 
-            return await Image.findById(parent.image)
+            return await Image.findById(parent.preview)
         },
         hub: async (parent) => await Hub.findById(parent.hub),
         comments: async (parent) => await Comment.find({ post: parent.id })
@@ -487,6 +484,11 @@ module.exports = {
             
             return await Post.estimatedDocumentCount()
         },
+        countUserPosts: async (_,  args, { user }) => {
+            if (!user) return null
+            
+            return await Post.find({ author: user.id }).estimatedDocumentCount()
+        },
         countComments: async (_, { id }, { user }) => {
             if (!user) return null
 
@@ -518,7 +520,7 @@ module.exports = {
                     throw new UserInputError('Not enough permissions', { errors })
                 }
             }
-        
+
             if (!user) {
                 errors.general = 'User not found'
                 throw new UserInputError('User not found', { errors })
@@ -547,7 +549,6 @@ module.exports = {
                     email,
                     password,
                     confirmPassword,
-                    role,
                     phone,
                     avatar
                 }
@@ -576,9 +577,15 @@ module.exports = {
                 })
             }
             // hash password and create an auth token
-            password = await bcrypt.hash(password, 12);
+            password = await bcrypt.hash(password, 12)
             
-            const userRole = await Role.findOne({ name: 'USER' })
+            let userRole = await Role.findOne({ name: 'USER' })
+            /*
+            if (!userRole) {
+                userRole = await Role.create({ name: 'ADMIN' })
+            }
+            */
+
             const newUser = new User({
                 email,
                 name,
