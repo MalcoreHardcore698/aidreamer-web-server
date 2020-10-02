@@ -68,5 +68,24 @@ module.exports = {
     TASK: 'TASK',
     CHAT: 'CHAT',
     TOUR: 'TOUR',
-    PROFILE: 'PROFILE'
+    PROFILE: 'PROFILE',
+
+    SUB_IMAGES: 'images',
+    SUB_AVATAR: 'avatars',
+    SUB_ICON: 'icons',
+    SUB_USERS: 'users',
+    SUB_HUBS: 'hubs',
+    SUB_POSTS: 'posts',
+    SUB_COMMENTS: 'comments',
+    SUB_CHATS: 'chats',
+    SUB_MESSAGES: 'messages',
+    SUB_ROLES: 'roles',
+    SUB_LANGUAGE: 'languages',
+    SUB_ACTS: 'acts',
+    SUB_ACT_TASKS: 'act-tasks',
+    SUB_CONDITION_BLOCKS: 'condition-blocks',
+    SUB_USER_ACTS: 'user-acts',
+    SUB_USER_NOTIFICATION: 'user-notifications',
+    SUB_USER_POSTS: 'user-posts',
+    SUB_USER_CHATS: 'user-chats'
 }
